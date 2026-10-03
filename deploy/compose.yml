@@ -1,0 +1,141 @@
+# MyTube — стек Dokploy (тип Compose, источник Raw).
+#
+#   api        Laravel + nginx: веб-клиент, JSON API для ТВ, отдача видео
+#   scheduler  планировщик Laravel (разбор каналов раз в 10 минут)
+#   worker     скачивание и транскодирование (mytube-workers)
+#
+# Переменные ${…} — из вкладки Environment стека в Dokploy (секреты там же,
+# в репозитории их нет). Образы — ghcr.io, реестр ghcr.io в Dokploy.
+#
+# Данные на хосте (владелец — отдельный пользователь, например mytube):
+#   /srv/mytube/data/database   база SQLite в режиме WAL (+ -wal, -shm)
+#   /srv/mytube/data/storage    storage/ Laravel: обложки, логи, кеш
+#   /srv/mytube/data/backups    копии базы перед миграциями (последние 7)
+#   /srv/mytube/data/worker     HOME воркера: cookies.txt, кеш yt-dlp
+#   ${MEDIA_PATH}               медиатека; в контейнерах — /media
+#
+# Длинная запись томов с create_host_path: false: без смонтированного HDD
+# (или без подготовленного каталога) контейнер не стартует, а не пишет
+# молча на системный SSD.
+
+x-app-env: &app-env
+  APP_NAME: MyTube
+  APP_ENV: production
+  APP_DEBUG: "false"
+  APP_KEY: ${APP_KEY}
+  APP_URL: ${APP_URL:?задайте APP_URL во вкладке Environment}
+  APP_LOCALE: ru
+  APP_FALLBACK_LOCALE: en
+  APP_FAKER_LOCALE: ru_RU
+  MEDIA_ROOT: /media
+  LOG_CHANNEL: stderr
+  LOG_LEVEL: warning
+  DB_CONNECTION: sqlite
+  DB_DATABASE: /data/database.sqlite
+  DB_FOREIGN_KEYS: "true"
+  SESSION_DRIVER: database
+  SESSION_LIFETIME: "120"
+  QUEUE_CONNECTION: database
+  CACHE_STORE: database
+  FILESYSTEM_DISK: local
+  MAIL_MAILER: log
+  YOUTUBE_API_KEY: ${YOUTUBE_API_KEY}
+
+x-database: &database
+  type: bind
+  source: /srv/mytube/data/database
+  target: /data
+  bind: { create_host_path: false }
+
+x-storage: &storage
+  type: bind
+  source: /srv/mytube/data/storage
+  target: /var/www/html/storage
+  bind: { create_host_path: false }
+
+services:
+  api:
+    image: ghcr.io/kamabyte/mytube-api:${API_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+      # Миграции, storage:link и кеши Laravel при старте (автоматизация образа).
+      # Копию базы перед ними снимает docker/entrypoint.d/45-mytube-db-backup.sh.
+      AUTORUN_ENABLED: "true"
+      AUTORUN_LARAVEL_MIGRATION_ISOLATION: "false"
+      MYTUBE_DB_BACKUP_DIR: /backups
+    volumes:
+      - *database
+      - *storage
+      - type: bind
+        source: /srv/mytube/data/backups
+        target: /backups
+        bind: { create_host_path: false }
+      # Видео отдаёт nginx по X-Accel-Redirect — только чтение.
+      - type: bind
+        source: ${MEDIA_PATH:?задайте MEDIA_PATH}
+        target: /media
+        read_only: true
+        bind: { create_host_path: false }
+    # ТВ-клиенты ходят на http://<сервер>:8000; веб — через домен стека в Dokploy.
+    ports:
+      - "8000:8080"
+    networks: [default, dokploy-network]
+    deploy:
+      resources:
+        limits: { cpus: "2", memory: 1g }
+
+  scheduler:
+    image: ghcr.io/kamabyte/mytube-api:${API_TAG:-latest}
+    restart: unless-stopped
+    command: ["php", "artisan", "schedule:work"]
+    environment:
+      <<: *app-env
+      # Миграции и кеши — только в api, иначе два контейнера мигрировали бы разом.
+      AUTORUN_ENABLED: "false"
+    volumes:
+      - *database
+      - *storage
+    # Проверка здоровья образа ходит в nginx, а здесь его нет — только PHP CLI.
+    healthcheck:
+      disable: true
+    deploy:
+      resources:
+        limits: { cpus: "1", memory: 512m }
+
+  worker:
+    image: ghcr.io/kamabyte/mytube-workers:${WORKERS_TAG:-latest}
+    restart: unless-stopped
+    # Группа с правом записи в медиатеку (если каталог принадлежит другому пользователю).
+    group_add: ["${MEDIA_GID:-1000}"]
+    environment:
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /data/database.sqlite
+      VIDEO_DOWNLOAD_DIR: /media/videos
+      VIDEO_DOWNLOADER_LOG_LEVEL: INFO
+      VIDEO_DOWNLOADER_TRANSCODE_FOR_APPLE_TV: "true"
+      VIDEO_DOWNLOADER_FFMPEG_PRESET: faster
+      VIDEO_DOWNLOADER_FFMPEG_CRF: "23"
+      VIDEO_DOWNLOADER_FFMPEG_AUDIO_BITRATE: 160k
+      VIDEO_DOWNLOADER_FFMPEG_THREADS: "4"
+      VIDEO_DOWNLOADER_YTDLP_COOKIE_FILE: /worker/cookies.txt
+    volumes:
+      - *database
+      - type: bind
+        source: /srv/mytube/data/worker
+        target: /worker
+        bind: { create_host_path: false }
+      - type: bind
+        source: ${MEDIA_PATH:?задайте MEDIA_PATH}
+        target: /media
+        bind: { create_host_path: false }
+    # Транскодирование — самое тяжёлое на сервере: лимит в три ядра и пониженный
+    # вес CPU, чтобы остальные сервисы выигрывали конкуренцию.
+    cpu_shares: 256
+    deploy:
+      resources:
+        limits: { cpus: "3", memory: 3g }
+
+networks:
+  dokploy-network:
+    external: true
