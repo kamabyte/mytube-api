@@ -150,8 +150,8 @@ export default function Channel({ channel, sort, videos }: Props) {
             {videos.data.length === 0 ? (
                 <EmptyState icon={VideoIcon} title="Видео пока нет">
                     {channel.download_on_demand
-                        ? 'Список видео обновляется раз в 10 минут. Скачивается только то, что вы попросите.'
-                        : 'Список видео обновляется раз в 10 минут, потом воркер скачает их по очереди.'}
+                        ? 'Список видео обновляется раз в минуту. Скачивается только то, что вы попросите.'
+                        : 'Список видео обновляется раз в минуту, потом воркер скачает их по очереди.'}
                 </EmptyState>
             ) : (
                 <InfiniteVideoGrid prop="videos" videos={videos.data} showChannel={false} />

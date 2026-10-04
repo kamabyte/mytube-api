@@ -2,7 +2,7 @@
 #
 #   api        Laravel + nginx: веб-клиент, JSON API для ТВ, отдача видео
 #   reverb     WebSocket (Laravel Reverb): уведомления «видео готово» в вебе
-#   scheduler  планировщик Laravel (разбор каналов раз в 10 минут)
+#   scheduler  планировщик Laravel (разбор каналов раз в минуту)
 #   worker     скачивание и транскодирование (mytube-workers)
 #
 # Переменные ${…} — из вкладки Environment стека в Dokploy (секреты там же,

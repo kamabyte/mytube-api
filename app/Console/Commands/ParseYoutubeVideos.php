@@ -12,12 +12,19 @@ use Carbon\Carbon;
 use DateInterval;
 use Google\Service\YouTube;
 use Illuminate\Console\Command;
+use Illuminate\Support\Str;
 
 class ParseYoutubeVideos extends Command
 {
     protected $signature = 'youtube:parse-videos {--channel= : Parse videos only for the given channel id} {--popular : Parse popular channel videos instead of latest uploads}';
 
     protected $description = 'Парсинг новых видео с подписанных каналов';
+
+    /**
+     * Плейлист проходится через API целиком (RSS у плейлистов нет), это квота
+     * на каждый прогон — поэтому по расписанию его проверяем реже, чем каналы.
+     */
+    private const int PLAYLIST_INTERVAL_MINUTES = 10;
 
     public function handle(
         YouTube $youTube,
@@ -62,6 +69,14 @@ class ParseYoutubeVideos extends Command
                     continue;
                 }
 
+                // --channel (сразу после добавления) — без паузы.
+                if (! $parsePopular && ! $channelId && $channel->is_playlist
+                    && $channel->last_synced_at?->gt(now()->subMinutes(self::PLAYLIST_INTERVAL_MINUTES))) {
+                    $this->logVerbose('Плейлист проверялся меньше '.self::PLAYLIST_INTERVAL_MINUTES.' минут назад');
+
+                    continue;
+                }
+
                 $uploadsPlaylistId = $channel->uploads_playlist_id ?: ($channel->is_playlist
                     ? null
                     : $this->fetchUploadsPlaylistId($youTube, $channel->external_id));
@@ -98,6 +113,11 @@ class ParseYoutubeVideos extends Command
                     $playlistItems = $this->fetchPlaylistItems($youTube, $uploadsPlaylistId);
                     $popularVideoIds = [];
                     $this->logVerbose('Получено playlist items (плейлист целиком): '.count($playlistItems));
+
+                    // Для плейлиста дата в playlist item — это дата добавления, она ничего
+                    // не отсекает, так что поле означает просто «когда прогоняли последний раз».
+                    // Ставим сразу: и пустой плейлист не должен проверяться каждую минуту.
+                    $channel->update(['last_synced_at' => now()]);
                 } else {
                     // Сначала RSS: он бесплатный, а канал, где ничего не вышло, так
                     // не тратит квоту вовсе. API — когда ленты нет или в неё не влезло всё новое.
@@ -214,12 +234,19 @@ class ParseYoutubeVideos extends Command
                         }
 
                         $publishedAt = Carbon::parse($video->snippet->publishedAt);
-                        $thumbnail = $thumbnailStore->replaceFromUrls(
-                            VideoThumbnail::urls($video->snippet),
-                            $existingVideos->get($video->id)?->getRawOriginal('thumbnail'),
-                            'thumbnails/videos',
-                            $video->id,
-                        );
+                        $currentThumbnail = $existingVideos->get($video->id)?->getRawOriginal('thumbnail');
+
+                        // Обложка у видео не меняется: уже сохранённую не качаем на каждом
+                        // прогоне (плейлист проходится целиком). Обновить разом —
+                        // youtube:sync-thumbnails --refresh.
+                        $thumbnail = $currentThumbnail && ! Str::isUrl($currentThumbnail)
+                            ? $currentThumbnail
+                            : $thumbnailStore->replaceFromUrls(
+                                VideoThumbnail::urls($video->snippet),
+                                $currentThumbnail,
+                                'thumbnails/videos',
+                                $video->id,
+                            );
 
                         $storedVideo = Video::withoutGlobalScopes()->updateOrCreate(
                             ['external_id' => $video->id],
@@ -246,11 +273,7 @@ class ParseYoutubeVideos extends Command
                     }
                 }
 
-                if ($channel->is_playlist) {
-                    // Для плейлиста дата в playlist item — это дата добавления, она ничего
-                    // не отсекает, так что поле означает просто «когда прогоняли последний раз».
-                    $channel->update(['last_synced_at' => now()]);
-                } elseif ($latestPublishedAt && (! $channel->last_synced_at || $latestPublishedAt->gt($channel->last_synced_at))) {
+                if (! $channel->is_playlist && $latestPublishedAt && (! $channel->last_synced_at || $latestPublishedAt->gt($channel->last_synced_at))) {
                     $channel->update(['last_synced_at' => $latestPublishedAt]);
                 }
 
