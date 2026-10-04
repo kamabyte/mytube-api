@@ -125,7 +125,7 @@ it('keeps the channel name sort stable with an id tiebreak', function (): void {
     expect(tvIds($ids))->toBe([$first->id, $second->id, $third->id]);
 });
 
-it('shows a video with its channel and description, and 404s for not downloaded ones', function (): void {
+it('shows a video with its channel and description, and a catalog video without a stream', function (): void {
     $channel = tvChannel('show', ['is_playlist' => true]);
     $video = tvVideo($channel, 'show');
     tvVideo($channel, 'show-2');
@@ -139,9 +139,15 @@ it('shows a video with its channel and description, and 404s for not downloaded 
         ->assertJsonPath('data.channel.id', $channel->id)
         ->assertJsonPath('data.channel.name', 'TV channel show')
         ->assertJsonPath('data.channel.is_playlist', true)
-        ->assertJsonPath('data.channel.videos_count', 2);
+        ->assertJsonPath('data.channel.videos_count', 2)
+        ->assertJsonPath('data.channel.catalog_count', 3)
+        ->assertJsonPath('data.download_state', 'downloaded');
 
-    $this->getJson("/api/videos/{$pending->id}")->assertNotFound()->assertJsonStructure(['message']);
+    // Нескачанное видео каталога — без потока, но со статусом (его переспрашивает tvOS).
+    $this->getJson("/api/videos/{$pending->id}")
+        ->assertOk()
+        ->assertJsonPath('data.video_url', null)
+        ->assertJsonPath('data.download_state', 'queued');
     // Без Accept: application/json — тоже JSON.
     $plain = $this->get('/api/videos/999999')->assertNotFound();
     expect($plain->headers->get('content-type'))->toContain('application/json');

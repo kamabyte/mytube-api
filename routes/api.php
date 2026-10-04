@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ChannelController;
+use App\Http\Controllers\DownloadRequestController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Internal\VideoDownloadController;
 use App\Http\Controllers\SearchController;
@@ -22,7 +23,10 @@ Route::name('api.')->group(function (): void {
     Route::get('/channels', [ChannelController::class, 'index'])->name('channels.index');
     Route::get('/channels/{channel}', [ChannelController::class, 'show'])->name('channels.show');
     Route::get('/videos', [VideoController::class, 'index'])->name('videos.index');
-    Route::get('/videos/{video}', [VideoController::class, 'show'])->name('videos.show');
+    // {catalogVideo} — и нескачанные видео каталога (их статус клиент переспрашивает тут).
+    Route::get('/videos/{catalogVideo}', [VideoController::class, 'show'])->name('videos.show');
+    Route::post('/videos/{catalogVideo}/download', [DownloadRequestController::class, 'store'])->name('videos.download.store');
+    Route::delete('/videos/{catalogVideo}/download', [DownloadRequestController::class, 'destroy'])->name('videos.download.destroy');
     Route::get('/videos/{video}/up-next', [VideoController::class, 'upNext'])->name('videos.up-next');
     Route::get('/videos/{video}/stream', [VideoController::class, 'stream'])->name('videos.stream');
     Route::get('/videos/{video}/subtitles/{track}', [VideoController::class, 'subtitles'])
