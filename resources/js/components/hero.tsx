@@ -1,33 +1,44 @@
-import { Link } from '@inertiajs/react';
-import { Play, Tv } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { ChannelAvatar } from '@/components/channel-avatar';
-import { formatDuration, formatRelative } from '@/lib/format';
-import { cn } from '@/lib/utils';
-import { progressRatio, useProgressStore } from '@/lib/watch-progress';
-import type { Video } from '@/types';
+import { Link } from "@inertiajs/react";
+import { ChevronLeft, ChevronRight, Play, Tv } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { ChannelAvatar } from "@/components/channel-avatar";
+import { formatDuration, formatRelative } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { progressRatio, useProgressStore } from "@/lib/watch-progress";
+import type { Video } from "@/types";
 
 const INTERVAL = 8000;
+const SWIPE_THRESHOLD = 50;
 
 /** Витрина вверху главной — как баннер в Apple TV: крупный кадр, заголовок, «Смотреть». */
 export function Hero({ videos }: { videos: Video[] }) {
     const [index, setIndex] = useState(0);
     const [paused, setPaused] = useState(false);
+    const touchStartX = useRef<number | null>(null);
     const progress = useProgressStore();
 
     useEffect(() => {
         if (paused || videos.length < 2) return;
-        const timer = window.setTimeout(() => setIndex((i) => (i + 1) % videos.length), INTERVAL);
+        const timer = window.setTimeout(
+            () => setIndex((i) => (i + 1) % videos.length),
+            INTERVAL,
+        );
         return () => window.clearTimeout(timer);
     }, [index, paused, videos.length]);
 
     if (videos.length === 0) return null;
 
+    const go = (delta: number) =>
+        setIndex((i) => (i + delta + videos.length) % videos.length);
+
     const current = videos[index];
     const ratio = progressRatio(progress[current.id]);
     const resumable = ratio > 0.02 && ratio < 1;
 
-    const fresh = current.downloaded_at && Date.now() - new Date(current.downloaded_at).getTime() < 3 * 86400_000;
+    const fresh =
+        current.downloaded_at &&
+        Date.now() - new Date(current.downloaded_at).getTime() < 3 * 86400_000;
 
     return (
         <section
@@ -36,6 +47,20 @@ export function Hero({ videos }: { videos: Video[] }) {
             onMouseLeave={() => setPaused(false)}
             onFocusCapture={() => setPaused(true)}
             onBlurCapture={() => setPaused(false)}
+            onKeyDown={(event) => {
+                if (event.key === "ArrowLeft") go(-1);
+                if (event.key === "ArrowRight") go(1);
+            }}
+            onTouchStart={(event) =>
+                (touchStartX.current = event.touches[0].clientX)
+            }
+            onTouchEnd={(event) => {
+                if (touchStartX.current === null) return;
+                const dx =
+                    event.changedTouches[0].clientX - touchStartX.current;
+                touchStartX.current = null;
+                if (Math.abs(dx) >= SWIPE_THRESHOLD) go(dx < 0 ? 1 : -1);
+            }}
             aria-roledescription="карусель"
         >
             {/* Фон — размытая обложка: превью у YouTube мелкие (320×180), во весь баннер они мылят. */}
@@ -47,8 +72,8 @@ export function Hero({ videos }: { videos: Video[] }) {
                         alt=""
                         aria-hidden
                         className={cn(
-                            'absolute inset-0 -z-10 size-full scale-125 object-cover blur-2xl saturate-[1.4] transition-opacity duration-1000',
-                            i === index ? 'opacity-80' : 'opacity-0',
+                            "absolute inset-0 -z-10 size-full scale-125 object-cover blur-2xl saturate-[1.4] transition-opacity duration-1000",
+                            i === index ? "opacity-80" : "opacity-0",
                         )}
                     />
                 ) : null,
@@ -69,10 +94,12 @@ export function Hero({ videos }: { videos: Video[] }) {
                                     key={video.id}
                                     src={video.thumbnail}
                                     alt=""
-                                    fetchPriority={i === 0 ? 'high' : 'low'}
+                                    fetchPriority={i === 0 ? "high" : "low"}
                                     className={cn(
-                                        'absolute inset-0 size-full object-cover transition-[opacity,transform] duration-700 ease-out group-hover:scale-[1.03]',
-                                        i === index ? 'opacity-100' : 'opacity-0',
+                                        "absolute inset-0 size-full object-cover transition-[opacity,transform] duration-700 ease-out group-hover:scale-[1.03]",
+                                        i === index
+                                            ? "opacity-100"
+                                            : "opacity-0",
                                     )}
                                 />
                             ) : null,
@@ -84,26 +111,57 @@ export function Hero({ videos }: { videos: Video[] }) {
                         </span>
                         {resumable && (
                             <div className="absolute inset-x-0 bottom-0 h-1 bg-white/30">
-                                <div className="h-full bg-brand" style={{ width: `${ratio * 100}%` }} />
+                                <div
+                                    className="h-full bg-brand"
+                                    style={{ width: `${ratio * 100}%` }}
+                                />
                             </div>
                         )}
                     </div>
                 </Link>
 
-                <div key={current.id} className="animate-fade-in flex min-w-0 flex-col gap-3 lg:order-1">
-                    {current.channel && (
-                        <Link href={`/channels/${current.channel.id}`} className="flex w-fit items-center gap-2 text-sm font-medium text-white/85 hover:text-white">
-                            <ChannelAvatar channel={current.channel} className="size-6 ring-white/20" />
-                            {current.channel.name}
-                        </Link>
-                    )}
-                    <h2 className="font-display line-clamp-3 text-2xl leading-tight font-bold text-balance sm:text-4xl xl:text-[44px]">
-                        {current.name}
-                    </h2>
-                    <div className="flex items-center gap-2 text-sm text-white/70">
-                        {fresh && <span className="rounded-md bg-white/15 px-1.5 py-0.5 text-xs font-semibold text-white backdrop-blur">Новинка</span>}
-                        {current.duration_seconds > 0 && <span className="tabular-nums">{formatDuration(current.duration_seconds)}</span>}
-                        {current.published_at && <span>· {formatRelative(current.published_at)}</span>}
+                <div
+                    key={current.id}
+                    className="animate-fade-in flex min-w-0 flex-col gap-3 lg:order-1"
+                >
+                    {/* Высота баннера не должна прыгать между слайдами: строка канала, три строки заголовка и строка мета резервируются всегда. */}
+                    <div className="h-6">
+                        {current.channel && (
+                            <Link
+                                href={`/channels/${current.channel.id}`}
+                                className="flex w-fit items-center gap-2 text-sm font-medium text-white/85 hover:text-white"
+                            >
+                                <ChannelAvatar
+                                    channel={current.channel}
+                                    className="size-6 ring-white/20"
+                                />
+                                <span className="truncate">
+                                    {current.channel.name}
+                                </span>
+                            </Link>
+                        )}
+                    </div>
+                    <div className="font-display flex min-h-[3lh] items-end text-2xl leading-tight font-bold sm:text-4xl xl:text-[44px]">
+                        <h2 className="line-clamp-3 text-balance">
+                            {current.name}
+                        </h2>
+                    </div>
+                    <div className="flex h-6 items-center gap-2 text-sm text-white/70">
+                        {fresh && (
+                            <span className="rounded-md bg-white/15 px-1.5 py-0.5 text-xs font-semibold text-white backdrop-blur">
+                                Новинка
+                            </span>
+                        )}
+                        {current.duration_seconds > 0 && (
+                            <span className="tabular-nums">
+                                {formatDuration(current.duration_seconds)}
+                            </span>
+                        )}
+                        {current.published_at && (
+                            <span>
+                                · {formatRelative(current.published_at)}
+                            </span>
+                        )}
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-3">
                         <Link
@@ -111,7 +169,7 @@ export function Hero({ videos }: { videos: Video[] }) {
                             className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-6 text-[15px] font-semibold text-black shadow-lg transition hover:scale-[1.03] hover:bg-white/90 active:scale-100"
                         >
                             <Play className="size-4 fill-current" />
-                            {resumable ? 'Продолжить' : 'Смотреть'}
+                            {resumable ? "Продолжить" : "Смотреть"}
                         </Link>
                         {current.channel && (
                             <Link
@@ -125,28 +183,69 @@ export function Hero({ videos }: { videos: Video[] }) {
                     </div>
 
                     {videos.length > 1 && (
-                        <div className="mt-4 flex gap-1.5" role="tablist" aria-label="Слайды">
-                            {videos.map((video, i) => (
-                                <button
-                                    key={video.id}
-                                    role="tab"
-                                    aria-selected={i === index}
-                                    aria-label={video.name}
-                                    onClick={() => setIndex(i)}
-                                    className="group/dot flex h-6 items-center"
-                                >
-                                    <span
-                                        className={cn(
-                                            'block h-1.5 rounded-full bg-white/35 transition-all duration-500 group-hover/dot:bg-white/70',
-                                            i === index ? 'w-6 bg-white' : 'w-1.5',
-                                        )}
-                                    />
-                                </button>
-                            ))}
+                        <div className="mt-4 flex items-center gap-3">
+                            <SlideButton
+                                label="Предыдущий слайд"
+                                onClick={() => go(-1)}
+                            >
+                                <ChevronLeft className="size-5" />
+                            </SlideButton>
+                            <div
+                                className="flex items-center"
+                                role="tablist"
+                                aria-label="Слайды"
+                            >
+                                {videos.map((video, i) => (
+                                    <button
+                                        key={video.id}
+                                        role="tab"
+                                        aria-selected={i === index}
+                                        aria-label={video.name}
+                                        onClick={() => setIndex(i)}
+                                        className="group/dot flex h-8 items-center px-1"
+                                    >
+                                        <span
+                                            className={cn(
+                                                "block h-2.5 rounded-full transition-all duration-500",
+                                                i === index
+                                                    ? "w-8 bg-white"
+                                                    : "w-2.5 bg-white/40 group-hover/dot:bg-white/75",
+                                            )}
+                                        />
+                                    </button>
+                                ))}
+                            </div>
+                            <SlideButton
+                                label="Следующий слайд"
+                                onClick={() => go(1)}
+                            >
+                                <ChevronRight className="size-5" />
+                            </SlideButton>
                         </div>
                     )}
                 </div>
             </div>
         </section>
+    );
+}
+
+function SlideButton({
+    label,
+    onClick,
+    children,
+}: {
+    label: string;
+    onClick: () => void;
+    children: ReactNode;
+}) {
+    return (
+        <button
+            type="button"
+            aria-label={label}
+            onClick={onClick}
+            className="flex size-9 items-center justify-center rounded-full bg-white/15 backdrop-blur-md transition hover:bg-white/25 active:scale-95"
+        >
+            {children}
+        </button>
     );
 }
