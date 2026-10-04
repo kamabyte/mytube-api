@@ -1,6 +1,7 @@
 # MyTube — стек Dokploy (тип Compose, источник Raw).
 #
 #   api        Laravel + nginx: веб-клиент, JSON API для ТВ, отдача видео
+#   reverb     WebSocket (Laravel Reverb): уведомления «видео готово» в вебе
 #   scheduler  планировщик Laravel (разбор каналов раз в 10 минут)
 #   worker     скачивание и транскодирование (mytube-workers)
 #
@@ -40,6 +41,16 @@ x-app-env: &app-env
   FILESYSTEM_DISK: local
   MAIL_MAILER: log
   YOUTUBE_API_KEY: ${YOUTUBE_API_KEY}
+  # Уведомления «видео готово»: Laravel публикует события в сервис reverb,
+  # браузер подключается через nginx api (location /app/).
+  BROADCAST_CONNECTION: reverb
+  REVERB_APP_ID: mytube
+  REVERB_APP_KEY: ${REVERB_APP_KEY:?задайте REVERB_APP_KEY}
+  REVERB_APP_SECRET: ${REVERB_APP_SECRET:?задайте REVERB_APP_SECRET}
+  REVERB_HOST: reverb
+  REVERB_PORT: "8080"
+  REVERB_SCHEME: http
+  WORKER_HOOK_TOKEN: ${WORKER_HOOK_TOKEN:?задайте WORKER_HOOK_TOKEN}
 
 x-database: &database
   type: bind
@@ -85,6 +96,21 @@ services:
       resources:
         limits: { cpus: "2", memory: 1g }
 
+  # WebSocket-сервер для уведомлений «видео готово». Снаружи не опубликован:
+  # браузер ходит через nginx api, Laravel — напрямую по сети стека.
+  reverb:
+    image: ghcr.io/kamabyte/mytube-api:${API_TAG:-latest}
+    restart: unless-stopped
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    environment:
+      <<: *app-env
+      AUTORUN_ENABLED: "false"
+    healthcheck:
+      disable: true
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256m }
+
   scheduler:
     image: ghcr.io/kamabyte/mytube-api:${API_TAG:-latest}
     restart: unless-stopped
@@ -119,6 +145,9 @@ services:
       VIDEO_DOWNLOADER_FFMPEG_AUDIO_BITRATE: 160k
       VIDEO_DOWNLOADER_FFMPEG_THREADS: "4"
       VIDEO_DOWNLOADER_YTDLP_COOKIE_FILE: /worker/cookies.txt
+      # Хук «видео скачалось» → api рассылает событие через Reverb.
+      VIDEO_DOWNLOADER_NOTIFY_URL: http://api:8080/api/internal/videos/{id}/downloaded
+      VIDEO_DOWNLOADER_NOTIFY_TOKEN: ${WORKER_HOOK_TOKEN:?задайте WORKER_HOOK_TOKEN}
     volumes:
       - *database
       - type: bind

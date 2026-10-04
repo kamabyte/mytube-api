@@ -254,3 +254,42 @@ it('looks up videos for continue watching, skipping removed and missing ones', f
         ->assertOk()
         ->assertJsonCount(0, 'data');
 });
+
+it('reports videos downloaded since the cursor for in-tab notifications', function (): void {
+    $this->travelTo('2026-10-04 12:00:00');
+    $channel = webChannel('notify');
+    webVideo($channel, 'before', ['downloaded_at' => '2026-10-04 11:00:00']);
+    webVideo($channel, 'after-1', ['downloaded_at' => '2026-10-04 11:30:00']);
+    webVideo($channel, 'after-2', ['downloaded_at' => '2026-10-04 11:45:00']);
+    webVideo($channel, 'pending', ['is_downloaded' => false]);
+
+    // Первый заход: только курсор, старое не всплывает.
+    $this->getJson('/videos/downloaded')
+        ->assertOk()
+        ->assertExactJson(['now' => '2026-10-04T12:00:00+00:00', 'total' => 0, 'data' => []]);
+
+    $this->getJson('/videos/downloaded?since='.urlencode('2026-10-04T11:30:00+00:00'))
+        ->assertOk()
+        ->assertJsonPath('total', 2)
+        ->assertJsonPath('data.0.name', 'Video after-2')
+        ->assertJsonPath('data.0.channel.name', 'Channel notify')
+        ->assertJsonPath('data.1.name', 'Video after-1');
+
+    // Курсор в другом часовом поясе — тот же момент.
+    $this->getJson('/videos/downloaded?since='.urlencode('2026-10-04T14:40:00+03:00'))->assertJsonPath('total', 1);
+
+    $this->getJson('/videos/downloaded?since=garbage')->assertJsonPath('total', 0);
+});
+
+it('caps notification cards and looks back at most a week', function (): void {
+    $this->travelTo('2026-10-04 12:00:00');
+    $channel = webChannel('burst');
+    foreach (range(1, 8) as $i) {
+        webVideo($channel, "burst-{$i}", ['downloaded_at' => '2026-10-04 11:00:00']);
+    }
+    webVideo($channel, 'ancient', ['downloaded_at' => '2026-09-01 00:00:00']);
+
+    $this->getJson('/videos/downloaded?since='.urlencode('2020-01-01T00:00:00Z'))
+        ->assertJsonPath('total', 8)
+        ->assertJsonCount(5, 'data');
+});

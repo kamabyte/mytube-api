@@ -20,6 +20,7 @@ Route::bind('catalogVideo', fn (string $value) => Video::catalog()->withDownload
 
 Route::get('/videos', [VideoController::class, 'index'])->name('videos.index');
 Route::get('/videos/lookup', [VideoController::class, 'lookup'])->name('videos.lookup');
+Route::get('/videos/downloaded', [VideoController::class, 'downloaded'])->name('videos.downloaded');
 Route::get('/watch/{catalogVideo}', [VideoController::class, 'show'])->name('watch');
 Route::delete('/videos/{video}', [VideoController::class, 'destroy'])->name('videos.destroy');
 Route::post('/videos/{catalogVideo}/download', [DownloadRequestController::class, 'store'])->name('videos.download.store');

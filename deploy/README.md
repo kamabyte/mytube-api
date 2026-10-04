@@ -10,7 +10,8 @@ MyTube работает в Docker под управлением **Dokploy**: с�
 
 | Сервис | Что | Снаружи |
 |---|---|---|
-| `api` | Laravel + nginx (serversideup/php 8.5), миграции при старте | домен стека в Dokploy; `http://<сервер>:8000` для ТВ-клиентов |
+| `api` | Laravel + nginx (serversideup/php 8.5), миграции при старте; проксирует WebSocket `/app/` в `reverb` | домен стека в Dokploy; `http://<сервер>:8000` для ТВ-клиентов |
+| `reverb` | `php artisan reverb:start` — WebSocket для уведомлений «видео готово»; наружу не опубликован | — |
 | `scheduler` | `php artisan schedule:work` — разбор каналов раз в 10 минут | — |
 | `worker` | `video-downloader worker` из [mytube-workers](https://github.com/kamabyte/mytube-workers) | — |
 
@@ -36,6 +37,8 @@ MyTube работает в Docker под управлением **Dokploy**: с�
 | `APP_KEY` | ключ Laravel (`php artisan key:generate --show`) |
 | `APP_URL` | адрес, от которого строятся ссылки для ТВ-клиентов, например `http://192.168.1.10:8000` |
 | `YOUTUBE_API_KEY` | ключ YouTube Data API v3 для разбора каналов |
+| `REVERB_APP_KEY`, `REVERB_APP_SECRET` | ключи Reverb (уведомления «видео готово»): любые случайные строки, например `openssl rand -hex 20`; ключ публичный — уходит в браузер |
+| `WORKER_HOOK_TOKEN` | общий токен воркера и api для хука «видео скачалось» (`openssl rand -hex 20`) |
 | `MEDIA_PATH` | каталог медиатеки на хосте |
 | `MEDIA_GID` | группа с правом записи в медиатеку (по умолчанию `1000`) |
 | `API_TAG`, `WORKERS_TAG` | теги образов: `latest` или `sha-<коммит>` |

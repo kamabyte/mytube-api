@@ -18,6 +18,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -28,6 +29,12 @@ class VideoController extends Controller
     private const int UP_NEXT_SIZE = 20;
 
     private const int LOOKUP_LIMIT = 300;
+
+    /** Сколько карточек отдавать уведомлениям: больше — вкладка покажет одну сводку. */
+    private const int DOWNLOADED_LIMIT = 5;
+
+    /** Дальше в прошлое уведомления не заглядывают, как бы давно вкладку ни открывали. */
+    private const int DOWNLOADED_LOOKBACK_DAYS = 7;
 
     public function index(Request $request): Response
     {
@@ -68,6 +75,41 @@ class VideoController extends Controller
     }
 
     /**
+     * Что скачалось с момента since — для уведомлений «видео готово» в открытой
+     * вкладке. Курсор — время сервера (now из прошлого ответа), часы браузера
+     * ни при чём. Без since — только курсор: при первом заходе старое не всплывает.
+     * Границу берём включительно (downloaded_at хранится с точностью до секунды),
+     * повторы вкладка отсеивает по id.
+     */
+    public function downloaded(Request $request): JsonResponse
+    {
+        $now = now()->startOfSecond();
+        $cursor = $now->toIso8601String();
+        $since = $this->parseSince($request->query('since'));
+
+        if ($since === null) {
+            return response()->json(['now' => $cursor, 'total' => 0, 'data' => []]);
+        }
+
+        $from = $since->max($now->copy()->subDays(self::DOWNLOADED_LOOKBACK_DAYS));
+
+        $downloaded = Video::query()
+            ->with('channel:id,name,thumbnail,is_playlist')
+            ->where('downloaded_at', '>=', $from)
+            ->orderByDesc('downloaded_at')
+            ->orderByDesc('id');
+
+        $total = $downloaded->count();
+        $videos = VideoCard::collection($downloaded->limit(self::DOWNLOADED_LIMIT)->get())->resolve();
+
+        return response()->json([
+            'now' => $cursor,
+            'total' => $total,
+            'data' => $videos,
+        ]);
+    }
+
+    /**
      * Скачанное видео — с плеером, из каталога — с кнопкой загрузки.
      */
     public function show(Video $catalogVideo): Response
@@ -82,6 +124,19 @@ class VideoController extends Controller
             'channel' => (new ChannelCard($video->channel))->resolve(),
             'upNext' => VideoCard::collection($upNext)->resolve(),
         ]);
+    }
+
+    private function parseSince(mixed $value): ?Carbon
+    {
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->utc();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**

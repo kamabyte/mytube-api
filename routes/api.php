@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ChannelController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Internal\VideoDownloadController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\VideoController;
@@ -28,3 +29,7 @@ Route::name('api.')->group(function (): void {
         ->whereNumber('track')
         ->name('videos.subtitles');
 });
+
+// Для воркера внутри стека, не для клиентов: закрыто токеном (services.worker.hook_token).
+Route::post('/internal/videos/{video}/downloaded', [VideoDownloadController::class, 'store'])
+    ->name('internal.videos.downloaded');

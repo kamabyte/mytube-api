@@ -39,8 +39,13 @@ return [
         'key' => env('YOUTUBE_API_KEY'),
     ],
 
+    // Хук «видео скачалось» от mytube-workers: общий токен в заголовке Authorization.
+    'worker' => [
+        'hook_token' => env('WORKER_HOOK_TOKEN'),
+    ],
+
     'downloader' => [
-        'path' => env('DOWNLOADER_PATH') ?: dirname(base_path()) . '/workers',
+        'path' => env('DOWNLOADER_PATH') ?: dirname(base_path()).'/workers',
         'command' => env('DOWNLOADER_COMMAND') ?: 'uv',
         'limit' => (int) env('DOWNLOADER_LIMIT', 1),
         'without_overlapping_for' => (int) env('DOWNLOADER_WITHOUT_OVERLAPPING_FOR', 180),
