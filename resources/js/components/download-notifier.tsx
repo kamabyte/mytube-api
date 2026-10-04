@@ -1,12 +1,13 @@
 import { router } from '@inertiajs/react';
+import { useEchoPublic } from '@laravel/echo-react';
 import { CircleCheck, X } from 'lucide-react';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { plural } from '@/lib/format';
 import type { Video } from '@/types';
 
-/** Как часто открытая вкладка спрашивает, что скачалось. */
-const POLL_MS = 15_000;
+/** App\Events\VideoDownloaded::CHANNEL */
+const DOWNLOADS_CHANNEL = 'downloads';
 
 /** Больше за раз (скажем, целый канал) — одна сводка вместо стопки карточек. */
 const MAX_CARDS = 3;
@@ -82,65 +83,71 @@ function DownloadToast({ id, video }: { id: string | number; video: Video }) {
     );
 }
 
+function showSummary(total: number, latest?: Video) {
+    toast.success(`Скачано ${plural(total, ['видео', 'видео', 'видео'])}`, {
+        description: latest ? `Последнее — «${latest.name}»` : undefined,
+        duration: 10_000,
+        action: { label: 'Смотреть', onClick: () => router.visit('/videos?sort=added') },
+    });
+}
+
+/** Показывает видео, если его ещё не показывали, и сдвигает курсор. */
+function announce(videos: Video[], total = videos.length) {
+    const seen = readSeen();
+    const fresh = videos.filter((video) => !seen.includes(video.id));
+    const unseen = total - (videos.length - fresh.length);
+    if (unseen <= 0) return;
+
+    write(SEEN_KEY, JSON.stringify([...fresh.map((video) => video.id), ...seen].slice(0, SEEN_LIMIT)));
+
+    if (unseen > MAX_CARDS) {
+        showSummary(unseen, fresh[0]);
+        return;
+    }
+
+    // Старые первыми: свежее окажется сверху стопки.
+    [...fresh].reverse().forEach((video) => toast.custom((id) => <DownloadToast id={id} video={video} />, { duration: 10_000 }));
+}
+
 /**
- * «Видео готово» во вкладке: раз в POLL_MS и при возвращении во вкладку
- * спрашивает сервер, что скачалось с прошлого раза, — и автоматически, и по запросу.
- * Курсор в localStorage, поэтому скачанное, пока вкладка была закрыта,
- * всплывёт при следующем заходе. Скрытые вкладки не опрашивают — так несколько
- * открытых вкладок не показывают одно и то же.
+ * Что скачалось, пока вкладки не было: один запрос при открытии.
+ * Курсор — время сервера из прошлого ответа, хранится в localStorage.
  */
-export function DownloadNotifier() {
-    useEffect(() => {
-        let busy = false;
+async function catchUp() {
+    try {
+        const since = read(CURSOR_KEY);
+        const url = since ? `/videos/downloaded?since=${encodeURIComponent(since)}` : '/videos/downloaded';
+        const response = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!response.ok) return;
 
-        const check = async () => {
-            if (busy || document.visibilityState !== 'visible') return;
-            busy = true;
+        const body = (await response.json()) as DownloadedResponse;
+        write(CURSOR_KEY, body.now);
+        if (since) announce(body.data, body.total);
+    } catch {
+        // сеть моргнула — не страшно, живые события всё равно придут
+    }
+}
 
-            try {
-                const since = read(CURSOR_KEY);
-                const url = since ? `/videos/downloaded?since=${encodeURIComponent(since)}` : '/videos/downloaded';
-                const response = await fetch(url, { headers: { Accept: 'application/json' } });
-                if (!response.ok) return;
-
-                const body = (await response.json()) as DownloadedResponse;
-                write(CURSOR_KEY, body.now);
-
-                const seen = readSeen();
-                const fresh = body.data.filter((video) => !seen.includes(video.id));
-                const total = body.total - (body.data.length - fresh.length);
-                if (total <= 0) return;
-
-                write(SEEN_KEY, JSON.stringify([...fresh.map((video) => video.id), ...seen].slice(0, SEEN_LIMIT)));
-
-                if (total > MAX_CARDS) {
-                    toast.success(`Скачано ${plural(total, ['видео', 'видео', 'видео'])}`, {
-                        description: fresh[0] ? `Последнее — «${fresh[0].name}»` : undefined,
-                        duration: 10_000,
-                        action: { label: 'Смотреть', onClick: () => router.visit('/videos?sort=added') },
-                    });
-                    return;
-                }
-
-                // Старые первыми: свежее окажется сверху стопки.
-                [...fresh].reverse().forEach((video) => toast.custom((id) => <DownloadToast id={id} video={video} />, { duration: 10_000 }));
-            } catch {
-                // сеть моргнула — спросим в следующий раз
-            } finally {
-                busy = false;
-            }
-        };
-
-        void check();
-        const timer = window.setInterval(() => void check(), POLL_MS);
-        const onVisible = () => void check();
-        document.addEventListener('visibilitychange', onVisible);
-
-        return () => {
-            window.clearInterval(timer);
-            document.removeEventListener('visibilitychange', onVisible);
-        };
-    }, []);
+/** Живые события: Reverb присылает video.downloaded, как только воркер закончил. */
+function LiveDownloads() {
+    useEchoPublic<{ video: Video }>(DOWNLOADS_CHANNEL, '.video.downloaded', ({ video }) => {
+        // downloaded_at — время сервера, как и курсор из /videos/downloaded.
+        if (video.downloaded_at) write(CURSOR_KEY, video.downloaded_at);
+        announce([video]);
+    });
 
     return null;
+}
+
+/**
+ * «Видео готово» во вкладке — и для автоскачивания, и для скачанного по запросу.
+ * При открытии — то, что скачалось без нас (курсор в localStorage), дальше —
+ * живые события через Reverb. Повторы между ними отсеиваются по id.
+ */
+export function DownloadNotifier({ live }: { live: boolean }) {
+    useEffect(() => {
+        void catchUp();
+    }, []);
+
+    return live ? <LiveDownloads /> : null;
 }

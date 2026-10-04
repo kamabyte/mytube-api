@@ -4,6 +4,10 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
         <meta name="color-scheme" content="dark light">
+        {{-- Публичный ключ Reverb — в рантайме: образ собирается один на все окружения. --}}
+        @if (config('broadcasting.default') === 'reverb' && config('broadcasting.connections.reverb.key'))
+            <meta name="reverb-key" content="{{ config('broadcasting.connections.reverb.key') }}">
+        @endif
 
         {{-- Тема до первой отрисовки, чтобы не мигало: сохранённая или системная. --}}
         <script>
