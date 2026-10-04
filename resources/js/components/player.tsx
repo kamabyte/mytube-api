@@ -157,6 +157,8 @@ export function Player({
     const [paused, setPaused] = useState(true);
     const [ended, setEnded] = useState(false);
     const [started, setStarted] = useState(false);
+    /** Браузер не дал запуститься без жеста: показываем обложку и кнопку. */
+    const [blocked, setBlocked] = useState(false);
     const [waiting, setWaiting] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(video.duration_seconds);
@@ -186,7 +188,9 @@ export function Player({
         [prefs.subtitles, prefs.subtitleLanguage, subtitles],
     );
 
-    const showControls = active || paused || overControls || settingsOpen || scrubbing;
+    // Первая загрузка, как на YouTube: чёрный экран и спиннер, без контролов.
+    const loading = !started && !blocked && !failed;
+    const showControls = !loading && (active || paused || overControls || settingsOpen || scrubbing);
 
     const attach = useCallback((el: HTMLVideoElement | null) => {
         ref.current = el;
@@ -211,6 +215,7 @@ export function Player({
         setPaused(true);
         setEnded(false);
         setStarted(false);
+        setBlocked(false);
         setCurrentTime(0);
         setDuration(video.duration_seconds);
 
@@ -236,6 +241,12 @@ export function Player({
         media.muted = saved.muted;
         media.defaultPlaybackRate = saved.rate;
         media.playbackRate = saved.rate;
+
+        // Запускаем сами, а не атрибутом autoplay: так видно, что браузер
+        // автозапуск запретил, и только тогда нужна обложка с кнопкой.
+        media.play().catch((error: unknown) => {
+            if (error instanceof DOMException && error.name === 'NotAllowedError') setBlocked(true);
+        });
 
         const onPip = () => setPip(document.pictureInPictureElement === media);
         const onAirplay = (event: Event) => setAirplay((event as Event & { availability: string }).availability === 'available');
@@ -593,8 +604,7 @@ export function Player({
                 key={video.id}
                 ref={attach}
                 src={video.stream_url}
-                poster={video.thumbnail ?? undefined}
-                autoPlay
+                poster={blocked ? (video.thumbnail ?? undefined) : undefined}
                 playsInline
                 preload="metadata"
                 className={cn('w-full bg-black', fullscreen ? 'h-full object-contain' : 'aspect-video', theater && !fullscreen && 'lg:max-h-[calc(100svh-10rem)] lg:object-contain')}
@@ -684,14 +694,14 @@ export function Player({
                 </div>
             )}
 
-            {waiting && !paused && (
+            {(loading || (waiting && !paused)) && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                     <LoaderCircle className="size-12 animate-spin text-white/90 [animation-delay:150ms]" />
                 </div>
             )}
 
-            {/* Большая кнопка: до первого запуска (автозапуск заблокирован) и на тач-экранах. */}
-            {!failed && countdown === null && (!started || (showControls && !waiting)) && (
+            {/* Большая кнопка: если автозапуск заблокирован и на тач-экранах. */}
+            {!failed && countdown === null && (started ? showControls && !waiting : blocked) && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                     <button
                         type="button"
