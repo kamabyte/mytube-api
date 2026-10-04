@@ -35,10 +35,10 @@ class ChannelController extends Controller
     public function index(): Response
     {
         $channels = Channel::query()
-            ->withCount('videos')
-            ->withCount($this->queuedCount())
+            ->withCount(['videos', ...$this->queuedCount(), ...Channel::catalogCount()])
             ->withSum('videos', 'file_size')
-            ->withMax('videos', 'published_at')
+            // По всему каталогу: канал «по запросу» без скачанного — не в самом низу.
+            ->withMax(Channel::catalogVideos(), 'published_at')
             ->orderByRaw('videos_max_published_at IS NULL')
             ->orderByDesc('videos_max_published_at')
             ->orderBy('name')
@@ -53,10 +53,11 @@ class ChannelController extends Controller
     {
         $sort = VideoSort::fromRequest($request);
 
-        $channel->loadCount(['videos', ...$this->queuedCount(), ...$this->catalogCount()])
+        $channel->loadCount(['videos', ...$this->queuedCount(), ...Channel::catalogCount()])
             ->loadSum('videos', 'file_size')
             ->loadSum('videos', 'duration_seconds')
-            ->loadMax('videos', 'published_at');
+            // «Обновлён» — по самому свежему видео каталога, а не скачанному.
+            ->loadMax(Channel::catalogVideos(), 'published_at');
 
         // Весь каталог канала: скачанное, очередь и то, что можно попросить.
         $catalog = $channel->videos()
@@ -195,19 +196,6 @@ class ChannelController extends Controller
         return ['videos as queued_count' => fn ($query) => $query
             ->withoutGlobalScopes()
             ->awaitingDownload()];
-    }
-
-    /**
-     * Всё, что можно смотреть или скачать: без удалённых и недоступных.
-     *
-     * @return array<string, \Closure>
-     */
-    private function catalogCount(): array
-    {
-        return ['videos as catalog_count' => fn ($query) => $query
-            ->withoutGlobalScopes()
-            ->whereNull('videos.removed_at')
-            ->where('videos.is_unavailable', false)];
     }
 
     private function importFailedMessage(ImportFailed $e, bool $isPlaylist): string

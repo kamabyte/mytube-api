@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Web\ChannelCard;
 use App\Http\Resources\Web\VideoCard;
 use App\Http\Resources\Web\VideoDetail;
+use App\Models\Channel;
 use App\Models\Video;
 use App\Support\DeletePin;
 use App\Support\HumanBytes;
@@ -40,7 +41,8 @@ class VideoController extends Controller
     {
         $sort = VideoSort::fromRequest($request);
 
-        $videos = VideoSort::apply(Video::query(), $sort)
+        // Вся лента каталога: нескачанное — с бейджем, его можно попросить.
+        $videos = VideoSort::apply(Video::catalog()->withDownloadState(), $sort)
             ->with('channel:id,name,thumbnail,is_playlist')
             ->paginate(self::PER_PAGE)
             ->withQueryString();
@@ -115,7 +117,7 @@ class VideoController extends Controller
     public function show(Video $catalogVideo): Response
     {
         $video = $catalogVideo->load('channel');
-        $video->channel->loadCount('videos');
+        $video->channel->loadCount(['videos', ...Channel::catalogCount()]);
 
         $upNext = UpNext::for($video, self::UP_NEXT_SIZE);
 

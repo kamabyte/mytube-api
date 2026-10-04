@@ -4,7 +4,7 @@ import { ChannelAvatar } from '@/components/channel-avatar';
 import { EmptyState } from '@/components/empty-state';
 import { SearchBox } from '@/components/search-box';
 import { InfiniteVideoGrid } from '@/components/video-grid';
-import { plural } from '@/lib/format';
+import { channelVideoCounts, plural } from '@/lib/format';
 import type { ChannelSummary, Paginated, Video } from '@/types';
 
 interface Props {
@@ -56,7 +56,7 @@ export default function Search({ query, channels, videos }: Props) {
                                         <div>
                                             <div className="font-semibold">{channel.name}</div>
                                             <div className="text-xs text-muted-foreground">
-                                                {plural(channel.videos_count ?? 0, ['видео', 'видео', 'видео'])}
+                                                {channelVideoCounts(channel)}
                                             </div>
                                         </div>
                                     </Link>

@@ -32,6 +32,14 @@ class LibraryStatistics
             ->selectRaw('SUM(CASE WHEN is_downloaded = 0 THEN 1 ELSE 0 END) as videos_in_progress')
             ->first();
 
+        // Каталог: не скачано, не в очереди и скачать можно — то, что можно попросить.
+        $availableVideos = Video::catalog()
+            ->where('is_downloaded', false)
+            ->where('is_unavailable', false)
+            ->whereNull('download_requested_at')
+            ->whereDoesntHave('channels', fn (Builder $query) => $query->where('download_on_demand', false))
+            ->count();
+
         $totalVideoSizeBytes = $videoStats->total_video_size;
         $totalDurationSeconds = $videoStats->total_duration_seconds;
 
@@ -43,6 +51,7 @@ class LibraryStatistics
             'total_duration_seconds' => $totalDurationSeconds,
             'total_duration_hours' => round($totalDurationSeconds / 3600, 2),
             'videos_in_progress' => (int) $videoStats->videos_in_progress,
+            'videos_available' => $availableVideos,
         ];
     }
 
@@ -64,12 +73,17 @@ class LibraryStatistics
             ->selectRaw('channels.id as channel_id, channels.name as channel_title')
             ->selectRaw('COUNT(videos.id) as video_count')
             ->selectRaw('COALESCE(SUM(videos.file_size), 0) as total_size_bytes')
+            // Ещё не скачано (каталог и очередь), без удалённых и недоступных.
+            ->selectRaw('(SELECT COUNT(*) FROM channel_video cv JOIN videos nd ON nd.id = cv.video_id
+                WHERE cv.channel_id = channels.id AND nd.is_downloaded = 0
+                  AND nd.is_unavailable = 0 AND nd.removed_at IS NULL) as not_downloaded_count')
             ->get();
 
         return $rows->map(fn ($row): array => [
             'channel_id' => (int) $row->channel_id,
             'channel_title' => $row->channel_title,
             'video_count' => (int) $row->video_count,
+            'not_downloaded_count' => (int) $row->not_downloaded_count,
             'total_size_bytes' => $row->total_size_bytes,
             'total_size_gb' => round($row->total_size_bytes / 1024 / 1024 / 1024, 2),
         ])->all();

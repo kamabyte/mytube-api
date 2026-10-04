@@ -41,7 +41,7 @@ class SearchController extends Controller
         // Лениво: при подгрузке следующих страниц видео каналы не нужны.
         $channels = fn (): array => ChannelCard::collection(
             TitleSearch::apply(Channel::query(), $query)
-                ->withCount('videos')
+                ->withCount(['videos', ...Channel::catalogCount()])
                 ->orderBy('name')
                 ->limit(self::CHANNELS_LIMIT)
                 ->get()

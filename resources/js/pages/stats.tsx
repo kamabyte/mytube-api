@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Clapperboard, Clock3, Download, HardDrive, type LucideIcon, Tv } from 'lucide-react';
+import { Clapperboard, Clock3, CloudDownload, Download, HardDrive, type LucideIcon, Tv } from 'lucide-react';
 import { useState } from 'react';
 import { PageTitle } from '@/components/empty-state';
 import { formatBytes, formatNumber, plural } from '@/lib/format';
@@ -11,12 +11,16 @@ interface Summary {
     total_video_size: number;
     total_duration_seconds: number;
     videos_in_progress: number;
+    /** Каталог «по запросу»: не скачано и не в очереди. */
+    videos_available: number;
 }
 
 interface ChannelRow {
     channel_id: number;
     channel_title: string;
     video_count: number;
+    /** Ещё не скачано: каталог и очередь. */
+    not_downloaded_count: number;
     total_size_bytes: number;
 }
 
@@ -142,6 +146,7 @@ function StorageByChannel({ channels }: { channels: ChannelRow[] }) {
                             </Link>
                             <span className="shrink-0 text-muted-foreground tabular-nums">
                                 {formatBytes(Number(row.total_size_bytes))} · {formatNumber(row.video_count)}
+                                {row.not_downloaded_count > 0 && <> · ещё {formatNumber(row.not_downloaded_count)} не скачано</>}
                             </span>
                         </div>
                         <div className="mt-1.5 h-2 rounded-full bg-muted">
@@ -163,7 +168,7 @@ export default function Stats({ summary, channels, daily }: { summary: Summary; 
             <Head title="Статистика" />
             <PageTitle>Статистика</PageTitle>
 
-            <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3 xl:grid-cols-6">
                 <Tile icon={Clapperboard} label="Видео" value={formatNumber(summary.total_videos - summary.videos_in_progress)} />
                 <Tile icon={Tv} label="Каналы" value={formatNumber(summary.total_channels)} />
                 <Tile icon={HardDrive} label="Объём" value={formatBytes(Number(summary.total_video_size))} />
@@ -178,6 +183,12 @@ export default function Stats({ summary, channels, daily }: { summary: Summary; 
                     label="В очереди"
                     value={formatNumber(summary.videos_in_progress)}
                     hint="ждут скачивания"
+                />
+                <Tile
+                    icon={CloudDownload}
+                    label="Можно скачать"
+                    value={formatNumber(summary.videos_available)}
+                    hint="в каталоге, по запросу"
                 />
             </div>
 

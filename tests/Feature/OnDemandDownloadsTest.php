@@ -220,3 +220,21 @@ it('registers the catalog binding even when routes are cached, as in production'
         $this->artisan('route:clear');
     }
 });
+
+it('shows what can still be downloaded in the statistics', function (): void {
+    $channel = onDemandChannel('avail');
+    catalogVideo($channel, 'avail-1');
+    catalogVideo($channel, 'avail-2');
+    catalogVideo($channel, 'avail-requested', ['download_requested_at' => now()]);
+    catalogVideo($channel, 'avail-done', ['is_downloaded' => true, 'file_size' => 10]);
+    catalogVideo($channel, 'avail-gone', ['is_unavailable' => true]);
+
+    $this->getJson('/api/statistics')
+        // Очередь считается отдельно (videos_in_progress), недоступное — нигде.
+        ->assertJsonPath('videos_available', 2)
+        ->assertJsonPath('videos_in_progress', 1);
+
+    $this->getJson('/api/statistics/channels')
+        ->assertJsonPath('0.video_count', 1)
+        ->assertJsonPath('0.not_downloaded_count', 3);
+});

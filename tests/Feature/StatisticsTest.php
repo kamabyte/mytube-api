@@ -73,6 +73,7 @@ it('returns aggregate statistics for all videos including in-progress items', fu
             'total_duration_seconds' => 180,
             'total_duration_hours' => 0.05,
             'videos_in_progress' => 1,
+            'videos_available' => 0,
         ]);
 });
 

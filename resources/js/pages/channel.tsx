@@ -82,11 +82,17 @@ export default function Channel({ channel, sort, videos }: Props) {
     // В ленте теперь и каталог — «Смотреть» начинает со скачанного.
     const first = videos.data.find((video) => video.download_state === 'downloaded');
     const available = availableCount(channel);
+    const downloaded = channel.videos_count ?? 0;
     const stats = [
-        plural(channel.videos_count ?? 0, ['видео', 'видео', 'видео']),
+        // Ничего не скачано и есть каталог — «0 видео» не пишем.
+        downloaded > 0 || available === 0 ? plural(downloaded, ['видео', 'видео', 'видео']) : null,
         channel.total_duration_seconds ? formatHours(channel.total_duration_seconds) : null,
         channel.total_size_bytes ? formatBytes(channel.total_size_bytes) : null,
-        available > 0 ? `ещё ${available} можно скачать` : null,
+        available > 0
+            ? downloaded > 0
+                ? `ещё ${available} можно скачать`
+                : `${plural(available, ['видео', 'видео', 'видео'])} можно скачать`
+            : null,
     ].filter(Boolean);
 
     return (
