@@ -7,6 +7,7 @@ use App\Http\Requests\Web\StoreChannelRequest;
 use App\Http\Resources\Web\ChannelCard;
 use App\Http\Resources\Web\VideoCard;
 use App\Models\Channel;
+use App\Models\Scopes\DownloadedVideo;
 use App\Support\DeletePin;
 use App\Support\HumanBytes;
 use App\Support\LibraryCleaner;
@@ -52,12 +53,19 @@ class ChannelController extends Controller
     {
         $sort = VideoSort::fromRequest($request);
 
-        $channel->loadCount(['videos', ...$this->queuedCount()])
+        $channel->loadCount(['videos', ...$this->queuedCount(), ...$this->catalogCount()])
             ->loadSum('videos', 'file_size')
             ->loadSum('videos', 'duration_seconds')
             ->loadMax('videos', 'published_at');
 
-        $videos = VideoSort::apply($channel->videos()->getQuery(), $sort)
+        // Весь каталог канала: скачанное, очередь и то, что можно попросить.
+        $catalog = $channel->videos()
+            ->withoutGlobalScope(DownloadedVideo::class)
+            ->whereNull('videos.removed_at')
+            ->withDownloadState()
+            ->getQuery();
+
+        $videos = VideoSort::apply($catalog, $sort)
             ->paginate(self::PER_PAGE)
             ->withQueryString();
 
@@ -82,6 +90,7 @@ class ChannelController extends Controller
                     sourceChannel: $request->sourceChannel(),
                     parseLatest: $request->parseLatest(),
                     parsePopular: $request->parsePopular(),
+                    downloadOnDemand: $request->downloadOnDemand(),
                     warn: function (string $message) use (&$warnings): void {
                         $warnings[] = $message;
                     },
@@ -92,6 +101,7 @@ class ChannelController extends Controller
                     parsePopular: $request->parsePopular(),
                     syncFrom: $request->syncFrom(),
                     playlistId: $request->playlistId(),
+                    downloadOnDemand: $request->downloadOnDemand(),
                 );
         } catch (ImportFailed $e) {
             throw ValidationException::withMessages([
@@ -106,14 +116,39 @@ class ChannelController extends Controller
         $kind = $isPlaylist ? 'плейлист' : 'канал';
         $status = $channel->wasRecentlyCreated ? 'Добавлен' : 'Уже был добавлен';
 
+        $description = $channel->download_on_demand
+            ? 'Список видео обновится через минуту. Скачиваться будет только то, что вы попросите.'
+            : 'Список видео обновится через минуту, скачивание — в порядке очереди.';
+
         // Единственное предупреждение импорта — не найден канал-источник.
-        $description = $warnings === []
-            ? 'Список видео обновится через минуту, скачивание — в порядке очереди.'
-            : 'Канал-источник не найден — взята обложка плейлиста. Список видео обновится через минуту.';
+        if ($warnings !== []) {
+            $description = 'Канал-источник не найден — взята обложка плейлиста. '.$description;
+        }
 
         Toast::success("{$status} {$kind} «{$channel->name}»", $description);
 
         return to_route('channels.show', $channel);
+    }
+
+    /**
+     * Режим скачивания: всё подряд или только по запросу. Скачанное остаётся
+     * как есть; переключение на «всё» ставит в очередь весь каталог канала.
+     */
+    public function update(Request $request, Channel $channel): RedirectResponse
+    {
+        $validated = $request->validate(['download_on_demand' => ['required', 'boolean']]);
+
+        $channel->update($validated);
+
+        if ($channel->download_on_demand) {
+            Toast::success("«{$channel->name}» — только по запросу", 'Скачанное остаётся, новые видео попадут в каталог.');
+        } else {
+            $queued = $channel->videos()->withoutGlobalScopes()->awaitingDownload()->count();
+
+            Toast::success("«{$channel->name}» скачивается целиком", "В очереди {$queued} видео.");
+        }
+
+        return back();
     }
 
     public function destroy(Request $request, Channel $channel, LibraryCleaner $cleaner, DeletePin $deletePin): RedirectResponse
@@ -159,8 +194,20 @@ class ChannelController extends Controller
     {
         return ['videos as queued_count' => fn ($query) => $query
             ->withoutGlobalScopes()
-            ->where('is_downloaded', false)
-            ->where('is_unavailable', false)];
+            ->awaitingDownload()];
+    }
+
+    /**
+     * Всё, что можно смотреть или скачать: без удалённых и недоступных.
+     *
+     * @return array<string, \Closure>
+     */
+    private function catalogCount(): array
+    {
+        return ['videos as catalog_count' => fn ($query) => $query
+            ->withoutGlobalScopes()
+            ->whereNull('videos.removed_at')
+            ->where('videos.is_unavailable', false)];
     }
 
     private function importFailedMessage(ImportFailed $e, bool $isPlaylist): string

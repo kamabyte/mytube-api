@@ -109,9 +109,12 @@ class VideoController extends Controller
         ]);
     }
 
-    public function show(Video $video): Response
+    /**
+     * Скачанное видео — с плеером, из каталога — с кнопкой загрузки.
+     */
+    public function show(Video $catalogVideo): Response
     {
-        $video->load('channel');
+        $video = $catalogVideo->load('channel');
         $video->channel->loadCount('videos');
 
         $upNext = UpNext::for($video, self::UP_NEXT_SIZE);

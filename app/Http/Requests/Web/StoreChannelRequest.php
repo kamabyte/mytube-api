@@ -23,6 +23,7 @@ class StoreChannelRequest extends FormRequest
             'url' => ['required', 'string', 'max:500'],
             'parse_latest' => ['boolean'],
             'parse_popular' => ['boolean'],
+            'download_on_demand' => ['boolean'],
             // Только для канала.
             'sync_from' => ['nullable', 'date', 'before_or_equal:today'],
             'playlist_id' => ['nullable', 'string', 'max:100'],
@@ -80,6 +81,11 @@ class StoreChannelRequest extends FormRequest
     public function parsePopular(): bool
     {
         return $this->boolean('parse_popular');
+    }
+
+    public function downloadOnDemand(): bool
+    {
+        return $this->boolean('download_on_demand');
     }
 
     public function syncFrom(): ?CarbonInterface

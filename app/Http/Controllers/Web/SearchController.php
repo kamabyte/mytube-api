@@ -30,7 +30,8 @@ class SearchController extends Controller
             ]);
         }
 
-        $videos = TitleSearch::apply(Video::query(), $query)
+        // Ищем по всему каталогу: найденное, но не скачанное можно тут же попросить.
+        $videos = TitleSearch::apply(Video::catalog()->withDownloadState(), $query)
             ->with('channel:id,name,thumbnail,is_playlist')
             ->orderByDesc('published_at')
             ->orderByDesc('id')

@@ -22,7 +22,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import { formatDuration } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { getProgress, resumePosition, saveProgress } from '@/lib/watch-progress';
-import type { SubtitleTrack, Video, VideoDetail } from '@/types';
+import type { PlayableVideo, SubtitleTrack, Video } from '@/types';
 import { ControlButton } from './player/control-button';
 import { ProgressBar } from './player/progress-bar';
 import { SettingsMenu, SPEEDS } from './player/settings-menu';
@@ -132,7 +132,7 @@ export function Player({
     onTheaterChange,
     onReady,
 }: {
-    video: VideoDetail;
+    video: PlayableVideo;
     next?: Video;
     autoplayNext: boolean;
     onAutoplayNextChange?: (value: boolean) => void;

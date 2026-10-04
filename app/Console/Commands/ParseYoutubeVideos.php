@@ -6,6 +6,7 @@ use App\Models\Channel;
 use App\Models\Video;
 use App\Support\LibraryCleaner;
 use App\Support\StoresPublicThumbnail;
+use App\Support\Youtube\UploadsFeed;
 use App\Support\Youtube\VideoThumbnail;
 use Carbon\Carbon;
 use DateInterval;
@@ -22,6 +23,7 @@ class ParseYoutubeVideos extends Command
         YouTube $youTube,
         StoresPublicThumbnail $thumbnailStore,
         LibraryCleaner $cleaner,
+        UploadsFeed $feed,
     ) {
         $channelId = $this->option('channel');
 
@@ -97,7 +99,20 @@ class ParseYoutubeVideos extends Command
                     $popularVideoIds = [];
                     $this->logVerbose('Получено playlist items (плейлист целиком): '.count($playlistItems));
                 } else {
-                    if ($channel->last_synced_at) {
+                    // Сначала RSS: он бесплатный, а канал, где ничего не вышло, так
+                    // не тратит квоту вовсе. API — когда ленты нет или в неё не влезло всё новое.
+                    $feedItems = $channel->last_synced_at && UploadsFeed::covers($channel->external_id, $uploadsPlaylistId)
+                        ? $this->fetchNewFeedItems($feed, $channel->external_id, $channel->last_synced_at)
+                        : null;
+
+                    if ($feedItems !== null) {
+                        $playlistItems = $feedItems;
+                        $this->logVerbose(sprintf(
+                            'Получено новых загрузок по RSS: %d после %s',
+                            count($playlistItems),
+                            $channel->last_synced_at->toDateTimeString(),
+                        ));
+                    } elseif ($channel->last_synced_at) {
                         $playlistItems = $this->fetchNewPlaylistItems($youTube, $uploadsPlaylistId, $channel->last_synced_at);
                         $this->logVerbose(sprintf(
                             'Получено новых playlist items: %d после %s',
@@ -311,6 +326,36 @@ class ParseYoutubeVideos extends Command
         $item = $response->getItems()[0] ?? null;
 
         return $item?->contentDetails?->relatedPlaylists?->uploads;
+    }
+
+    /**
+     * Новые загрузки из RSS в виде playlist items (snippet.publishedAt,
+     * snippet.resourceId.videoId) — дальше они идут тем же путём, что из API.
+     * null — лента недоступна или целиком новее $after: тогда новых может быть
+     * больше, чем в неё влезает, и проходить загрузки надо через API.
+     */
+    private function fetchNewFeedItems(UploadsFeed $feed, string $channelId, Carbon $after): ?array
+    {
+        $uploads = $feed->latest($channelId);
+
+        if ($uploads === null) {
+            $this->logVerbose('RSS недоступен, загрузки — через API');
+
+            return null;
+        }
+
+        $new = array_values(array_filter($uploads, fn (array $upload) => $upload['published_at']->gt($after)));
+
+        if (count($new) >= UploadsFeed::FEED_SIZE) {
+            $this->logVerbose('В RSS всё новое — могло не влезть, загрузки — через API');
+
+            return null;
+        }
+
+        return array_map(fn (array $upload) => (object) ['snippet' => (object) [
+            'publishedAt' => $upload['published_at']->toIso8601String(),
+            'resourceId' => (object) ['videoId' => $upload['video_id']],
+        ]], $new);
     }
 
     private function fetchNewPlaylistItems(YouTube $youTube, string $uploadsPlaylistId, Carbon $after): array

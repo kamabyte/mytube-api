@@ -107,10 +107,20 @@ it('builds the up-next queue around videos without a publish date', function ():
             ->where('upNext.1.id', $undatedFirst->id));
 });
 
-it('does not open videos that are not downloaded yet', function (): void {
-    $pending = webVideo(webChannel('pending'), 'pending', ['is_downloaded' => false]);
+it('opens a catalog video without a stream, but not a removed one', function (): void {
+    $channel = webChannel('pending');
+    $pending = webVideo($channel, 'pending', ['is_downloaded' => false]);
+    $removed = webVideo($channel, 'removed', ['is_downloaded' => false, 'is_unavailable' => true, 'removed_at' => now()]);
 
-    $this->get("/watch/{$pending->id}")->assertNotFound();
+    $this->get("/watch/{$pending->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('watch')
+            ->where('video.stream_url', null)
+            ->where('video.download_state', 'queued')
+            ->where('video.subtitles', []));
+
+    $this->get("/watch/{$removed->id}")->assertNotFound();
 });
 
 it('paginates the feed for infinite scroll and honours the sort', function (): void {
@@ -141,7 +151,7 @@ it('shows a channel with its aggregates and videos', function (): void {
     $channel = webChannel('page');
     webVideo($channel, 'p-1', ['duration_seconds' => 100, 'file_size' => 1000]);
     webVideo($channel, 'p-2', ['duration_seconds' => 200, 'file_size' => 3000]);
-    webVideo($channel, 'p-3', ['is_downloaded' => false, 'file_size' => 99999]);
+    webVideo($channel, 'p-3', ['is_downloaded' => false, 'file_size' => 99999, 'published_at' => now()->subWeek()]);
 
     $this->get("/channels/{$channel->id}")
         ->assertOk()
@@ -150,7 +160,12 @@ it('shows a channel with its aggregates and videos', function (): void {
             ->where('channel.videos_count', 2)
             ->where('channel.total_size_bytes', 4000)
             ->where('channel.total_duration_seconds', 300)
-            ->has('videos.data', 2));
+            ->where('channel.catalog_count', 3)
+            ->where('channel.queued_count', 1)
+            // Каталог целиком: скачанное и очередь.
+            ->has('videos.data', 3)
+            ->where('videos.data.0.download_state', 'downloaded')
+            ->where('videos.data.2.download_state', 'queued'));
 });
 
 it('lists channels in the library', function (): void {

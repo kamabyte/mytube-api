@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Web;
 
 use App\Models\Video;
+use App\Support\DownloadState;
 use App\Support\MediaUrl;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -28,6 +29,7 @@ class VideoCard extends JsonResource
             'view_count' => $this->view_count,
             'published_at' => $this->published_at,
             'downloaded_at' => $this->downloaded_at,
+            'download_state' => DownloadState::of($this->resource),
             // resolve(): иначе Inertia развернёт вложенный ресурс как ответ,
             // с обёрткой {data: ...}.
             'channel' => $this->whenLoaded('channel', fn () => (new ChannelCard($this->channel))->resolve()),

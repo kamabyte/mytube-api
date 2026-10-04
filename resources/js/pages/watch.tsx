@@ -3,6 +3,7 @@ import { ChevronDown, Download, Ellipsis, ExternalLink, Trash2 } from 'lucide-re
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ChannelAvatar } from '@/components/channel-avatar';
 import { DeleteDialog } from '@/components/delete-dialog';
+import { DownloadStage } from '@/components/download-stage';
 import { Player, type PlayerHandle } from '@/components/player';
 import { RichText } from '@/components/rich-text';
 import { Button } from '@/components/ui/button';
@@ -63,11 +64,16 @@ function VideoMenu({ video }: { video: VideoDetail }) {
                             Открыть на YouTube
                         </a>
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem variant="destructive" onSelect={() => setConfirming(true)}>
-                        <Trash2 />
-                        Удалить видео
-                    </DropdownMenuItem>
+                    {/* Удалять имеет смысл скачанное: у каталожного видео нет файла. */}
+                    {video.stream_url && (
+                        <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem variant="destructive" onSelect={() => setConfirming(true)}>
+                                <Trash2 />
+                                Удалить видео
+                            </DropdownMenuItem>
+                        </>
+                    )}
                 </DropdownMenuContent>
             </DropdownMenu>
 
@@ -98,7 +104,8 @@ export default function Watch({ video, channel, upNext }: Props) {
     }, []);
 
     // Стабильная ссылка: плеер по ней понимает, что сменилось видео.
-    const playable = useMemo(() => ({ ...video, channel }), [video, channel]);
+    // Без потока (видео из каталога) играть нечего — вместо плеера статус загрузки.
+    const playable = useMemo(() => (video.stream_url ? { ...video, stream_url: video.stream_url, channel } : null), [video, channel]);
 
     const description = video.description?.trim() ?? '';
     const meta = [
@@ -122,15 +129,19 @@ export default function Watch({ video, channel, upNext }: Props) {
                 )}
             >
                 <div className={cn('min-w-0', theater && 'bg-black lg:-mx-8 lg:-mt-6 xl:col-span-full')}>
-                    <Player
-                        video={playable}
-                        next={upNext[0]}
-                        autoplayNext={autoplay}
-                        onAutoplayNextChange={setAutoplay}
-                        theater={theater}
-                        onTheaterChange={setTheater}
-                        onReady={onReady}
-                    />
+                    {playable ? (
+                        <Player
+                            video={playable}
+                            next={upNext[0]}
+                            autoplayNext={autoplay}
+                            onAutoplayNextChange={setAutoplay}
+                            theater={theater}
+                            onTheaterChange={setTheater}
+                            onReady={onReady}
+                        />
+                    ) : (
+                        <DownloadStage video={video} />
+                    )}
                 </div>
 
                 <div className="min-w-0 xl:col-start-1">
@@ -149,13 +160,15 @@ export default function Watch({ video, channel, upNext }: Props) {
                             </Link>
 
                             <div className="ml-auto flex gap-2">
-                                <Button asChild variant="secondary" className="rounded-full">
-                                    <a href={video.stream_url} download={`${video.name}.mp4`}>
-                                        <Download />
-                                        Скачать
-                                        {video.file_size ? <span className="text-muted-foreground">{formatBytes(video.file_size)}</span> : null}
-                                    </a>
-                                </Button>
+                                {video.stream_url && (
+                                    <Button asChild variant="secondary" className="rounded-full">
+                                        <a href={video.stream_url} download={`${video.name}.mp4`}>
+                                            <Download />
+                                            Скачать
+                                            {video.file_size ? <span className="text-muted-foreground">{formatBytes(video.file_size)}</span> : null}
+                                        </a>
+                                    </Button>
+                                )}
                                 <VideoMenu video={video} />
                             </div>
                         </div>

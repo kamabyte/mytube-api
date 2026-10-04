@@ -86,8 +86,16 @@ function snapshot(video: Video): Video {
         view_count: video.view_count,
         published_at: video.published_at,
         downloaded_at: video.downloaded_at,
+        // Прогресс бывает только у того, что играл плеер, — значит, скачано.
+        download_state: 'downloaded',
         channel: channel
-            ? { id: channel.id, name: channel.name, thumbnail: channel.thumbnail, is_playlist: channel.is_playlist }
+            ? {
+                  id: channel.id,
+                  name: channel.name,
+                  thumbnail: channel.thumbnail,
+                  is_playlist: channel.is_playlist,
+                  download_on_demand: channel.download_on_demand,
+              }
             : undefined,
     };
 }
