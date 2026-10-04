@@ -20,6 +20,7 @@ class ChannelController extends Controller
                 'description',
                 'thumbnail',
                 'is_playlist',
+                'download_on_demand',
                 'created_at',
                 'updated_at',
                 'last_synced_at',
@@ -59,7 +60,8 @@ class ChannelController extends Controller
             )
             // Только скачанные видео — через глобальный скоуп DownloadedVideo.
             // После allowedFields: иначе select() из fields[] затрёт подзапрос.
-            ->withCount('videos')
+            // catalog_count — весь каталог (и нескачанное), для «ещё N не скачано».
+            ->withCount(['videos', ...Channel::catalogCount()])
             ->defaultSort('-created_at')
             ->jsonPaginate();
 
@@ -68,7 +70,7 @@ class ChannelController extends Controller
 
     public function show(Channel $channel): ChannelResource
     {
-        $channel->loadCount('videos');
+        $channel->loadCount(['videos', ...Channel::catalogCount()]);
 
         return new ChannelResource($channel);
     }

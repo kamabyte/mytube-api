@@ -21,7 +21,9 @@ class ChannelResource extends JsonResource
             'name' => $this->whenHas('name', $this->name),
             'thumbnail' => $this->whenHas('thumbnail', $this->thumbnail),
             'is_playlist' => $this->whenHas('is_playlist', fn () => (bool) $this->is_playlist),
+            'download_on_demand' => $this->whenHas('download_on_demand', fn () => (bool) $this->download_on_demand),
             'videos_count' => $this->whenCounted('videos'),
+            'catalog_count' => $this->whenCounted('catalog'),
             'videos' => VideoResource::collection($this->whenLoaded('videos')),
             'recent_videos' => VideoResource::collection($this->whenLoaded('recentVideos')),
         ];

@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Video;
+use App\Support\DownloadState;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -50,7 +51,13 @@ class VideoResource extends JsonResource
             'thumbnail' => $this->whenHas('thumbnail', $this->thumbnail),
             'duration_seconds' => $this->whenHas('duration_seconds', $this->duration_seconds),
             'view_count' => $this->whenHas('view_count', $this->view_count),
-            'video_url' => $this->whenHas('id', fn () => route('api.videos.stream', $this->resource)),
+            // У нескачанного видео каталога потока нет. is_downloaded может и не быть
+            // среди выбранных колонок (LIST_COLUMNS) — тогда это скачанное.
+            'video_url' => $this->whenHas('id', fn () => $this->resource->getAttribute('is_downloaded') === false
+                ? null
+                : route('api.videos.stream', $this->resource)),
+            'download_state' => $this->whenHas('is_downloaded', fn () => DownloadState::of($this->resource)),
+            'download_requested_at' => $this->whenHas('download_requested_at', $this->download_requested_at),
             'created_at' => $this->whenHas('created_at', $this->created_at),
             'updated_at' => $this->whenHas('updated_at', $this->updated_at),
             'published_at' => $this->whenHas('published_at', $this->published_at),

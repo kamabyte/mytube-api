@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\VideoResource;
+use App\Models\Channel;
+use App\Models\Scopes\DownloadedVideo;
 use App\Models\Video;
 use App\Support\Subtitles;
 use App\Support\UpNext;
@@ -39,6 +41,15 @@ class VideoController extends Controller
                 // Все видео канала или плейлиста, а не только те, где он основной.
                 AllowedFilter::callback('channel_id', fn ($query, $value) => $query
                     ->whereHas('channels', fn ($query) => $query->whereKey(Arr::wrap($value)))),
+                // filter[catalog]=1 — и нескачанное из каталога, с download_state у каждого.
+                // Без фильтра — только скачанное, как раньше (контракт Android и старых tvOS).
+                AllowedFilter::callback('catalog', function ($query, $value) {
+                    if (filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+                        $query->withoutGlobalScope(DownloadedVideo::class)
+                            ->whereNull('videos.removed_at')
+                            ->withDownloadState();
+                    }
+                }),
             )
             ->allowedIncludes(
                 'channel',
@@ -60,13 +71,17 @@ class VideoController extends Controller
         return VideoResource::collection($videos);
     }
 
-    public function show(Video $video): VideoResource
+    /**
+     * Видео каталога, скачанное или нет: у нескачанного video_url — null,
+     * а download_state показывает, где оно на пути в медиатеку.
+     */
+    public function show(Video $catalogVideo): VideoResource
     {
-        $video->load(['channel' => fn ($query) => $query
-            ->select('id', 'name', 'thumbnail', 'is_playlist')
-            ->withCount('videos')]);
+        $catalogVideo->load(['channel' => fn ($query) => $query
+            ->select('id', 'name', 'thumbnail', 'is_playlist', 'download_on_demand')
+            ->withCount(['videos', ...Channel::catalogCount()])]);
 
-        return new VideoResource($video);
+        return new VideoResource($catalogVideo);
     }
 
     /**

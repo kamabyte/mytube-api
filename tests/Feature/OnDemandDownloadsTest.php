@@ -199,10 +199,35 @@ it('leaves the catalog out of the library statistics', function (): void {
         ->assertJsonPath('total_duration_seconds', 1200);
 });
 
-it('keeps catalog videos out of the TV API', function (): void {
-    $video = catalogVideo(onDemandChannel('tv'), 'tv-1');
+it('keeps catalog videos out of TV lists unless asked for, and lets the TV request them', function (): void {
+    $channel = onDemandChannel('tv');
+    $video = catalogVideo($channel, 'tv-1');
+    catalogVideo($channel, 'tv-done', ['is_downloaded' => true, 'file_size' => 1, 'published_at' => now()->subWeek()]);
 
-    $this->getJson("/api/videos/{$video->id}")->assertNotFound();
+    // Старый контракт (Android, прежние tvOS): только скачанное, без лишних фильтров.
+    $this->getJson('/api/videos')->assertJsonCount(1, 'data')->assertJsonPath('data.0.download_state', 'downloaded');
+
+    $this->getJson('/api/videos?filter[catalog]=1&sort=new')
+        ->assertJsonCount(2, 'data')
+        ->assertJsonPath('data.0.id', $video->id)
+        ->assertJsonPath('data.0.download_state', 'available')
+        ->assertJsonPath('data.0.video_url', null);
+
+    $this->getJson('/api/channels')
+        ->assertJsonPath('data.0.videos_count', 1)
+        ->assertJsonPath('data.0.catalog_count', 2)
+        ->assertJsonPath('data.0.download_on_demand', true);
+
+    $this->postJson("/api/videos/{$video->id}/download")
+        ->assertOk()
+        ->assertJsonPath('data.download_state', 'queued');
+
+    $this->deleteJson("/api/videos/{$video->id}/download")
+        ->assertOk()
+        ->assertJsonPath('data.download_state', 'available');
+
+    $gone = catalogVideo($channel, 'tv-gone', ['is_unavailable' => true]);
+    $this->postJson("/api/videos/{$gone->id}/download")->assertUnprocessable();
 });
 
 it('registers the catalog binding even when routes are cached, as in production', function (): void {
