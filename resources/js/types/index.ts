@@ -76,5 +76,7 @@ export interface Toast {
 export interface SharedProps {
     sidebarChannels: ChannelSummary[];
     deletePin: { configured: boolean; unlocked: boolean };
+    /** Непрочитанные уведомления — бейдж колокольчика. */
+    unreadNotifications: number;
     [key: string]: unknown;
 }
