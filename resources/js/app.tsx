@@ -1,8 +1,8 @@
 import '../css/app.css';
 
 import { createInertiaApp } from '@inertiajs/react';
-import { DownloadNotifier } from '@/components/download-notifier';
 import { FlashToaster } from '@/components/flash-toaster';
+import { LiveNotifications } from '@/components/live-notifications';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
 import AppLayout from '@/layouts/app-layout';
@@ -19,7 +19,7 @@ void createInertiaApp({
             <TooltipProvider delayDuration={300}>
                 {app}
                 <FlashToaster />
-                <DownloadNotifier live={live} />
+                <LiveNotifications live={live} />
             </TooltipProvider>
         );
     },
