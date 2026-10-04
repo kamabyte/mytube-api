@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { ChartColumnBig, Clapperboard, House, type LucideIcon, Search, Tv } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { AppearanceMenu } from '@/components/appearance-menu';
+import { NotificationBell } from '@/components/notification-bell';
 import { ChannelAvatar } from '@/components/channel-avatar';
 import { Logo, LogoMark } from '@/components/logo';
 import { SearchBox } from '@/components/search-box';
@@ -114,6 +115,7 @@ function Header() {
                             <Search className="size-[18px]" />
                         </Link>
                     </Button>
+                    <NotificationBell />
                     <AppearanceMenu />
                 </div>
             </div>

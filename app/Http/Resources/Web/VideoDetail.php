@@ -28,9 +28,6 @@ class VideoDetail extends VideoCard
             // через который открыта страница. У видео из каталога потока нет.
             'stream_url' => $this->is_downloaded ? route('api.videos.stream', $this->resource, absolute: false) : null,
             'subtitles' => $this->subtitles(),
-            'download_requested_at' => $this->download_requested_at,
-            // Видео канала с автоскачиванием в очереди и без запроса — отменять нечего.
-            'auto_download' => (bool) $this->auto_download,
         ];
     }
 

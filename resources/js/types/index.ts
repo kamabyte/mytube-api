@@ -25,6 +25,10 @@ export interface Video {
     published_at: string | null;
     downloaded_at: string | null;
     download_state: DownloadState;
+    /** Запросили скачать — только свой запрос можно отменить. */
+    download_requested_at: string | null;
+    /** Один из источников качает всё сам: в очереди и без запроса, файл не убрать. */
+    auto_download: boolean;
     channel?: ChannelSummary;
 }
 
@@ -38,9 +42,6 @@ export interface VideoDetail extends Video {
     /** null — видео из каталога, ещё не скачано. */
     stream_url: string | null;
     subtitles: SubtitleTrack[];
-    download_requested_at: string | null;
-    /** В очереди и без запроса: один из источников качает всё сам. */
-    auto_download: boolean;
 }
 
 /** Скачанное видео — то, что умеет играть плеер. */
@@ -76,5 +77,7 @@ export interface Toast {
 export interface SharedProps {
     sidebarChannels: ChannelSummary[];
     deletePin: { configured: boolean; unlocked: boolean };
+    /** Непрочитанные уведомления — бейдж колокольчика. */
+    unreadNotifications: number;
     [key: string]: unknown;
 }

@@ -173,8 +173,6 @@ class LibraryCleaner
      */
     public function removeVideo(Video $video): VideoRemoval
     {
-        $freed = 0;
-
         if (! $this->isMediaDiskAvailable()) {
             throw new MediaUnavailable(sprintf(
                 'The media disk (%s) is not available, the video file cannot be removed.',
@@ -182,14 +180,7 @@ class LibraryCleaner
             ));
         }
 
-        $disk = Storage::disk('media');
-        $files = $this->mediaFiles($video);
-
-        foreach ($files as $file) {
-            $freed += (int) $disk->size($file);
-        }
-
-        $disk->delete($files);
+        [$freed, $kept] = $this->deleteMediaFiles($video);
 
         $thumbnail = $video->getRawOriginal('thumbnail');
 
@@ -206,12 +197,68 @@ class LibraryCleaner
             'thumbnail' => null,
         ])->save();
 
-        $kept = array_values(array_filter($files, fn (string $file) => $disk->exists($file)));
+        return new VideoRemoval(
+            freedBytes: $kept === [] ? $freed : 0,
+            keptFiles: $kept,
+        );
+    }
+
+    /**
+     * Убирает только файл: видео остаётся в каталоге (с обложкой) и его можно
+     * попросить скачать снова. Для видео канала с автоскачиванием смысла нет —
+     * воркер тут же скачал бы его заново.
+     *
+     * @throws MediaUnavailable
+     * @throws UnloadWouldRequeue
+     */
+    public function unloadVideo(Video $video): VideoRemoval
+    {
+        if (! $this->isMediaDiskAvailable()) {
+            throw new MediaUnavailable(sprintf(
+                'The media disk (%s) is not available, the video file cannot be removed.',
+                config('filesystems.disks.media.root') ?: 'MEDIA_ROOT is not set',
+            ));
+        }
+
+        if ($video->channels()->where('download_on_demand', false)->exists()) {
+            throw new UnloadWouldRequeue;
+        }
+
+        [$freed, $kept] = $this->deleteMediaFiles($video);
+
+        $video->forceFill([
+            'is_downloaded' => false,
+            'downloaded_at' => null,
+            'download_requested_at' => null,
+            'file_size' => null,
+        ])->save();
 
         return new VideoRemoval(
             freedBytes: $kept === [] ? $freed : 0,
-            keptFiles: array_map(fn (string $file) => $disk->path($file), $kept),
+            keptFiles: $kept,
         );
+    }
+
+    /**
+     * Файлы видео на медиадиске (само видео и всё рядом, например субтитры).
+     *
+     * @return array{0: int, 1: list<string>} Сколько байт было и абсолютные пути того, что удалить не вышло.
+     */
+    private function deleteMediaFiles(Video $video): array
+    {
+        $disk = Storage::disk('media');
+        $files = $this->mediaFiles($video);
+        $bytes = 0;
+
+        foreach ($files as $file) {
+            $bytes += (int) $disk->size($file);
+        }
+
+        $disk->delete($files);
+
+        $kept = array_values(array_filter($files, fn (string $file) => $disk->exists($file)));
+
+        return [$bytes, array_map(fn (string $file) => $disk->path($file), $kept)];
     }
 
     /**

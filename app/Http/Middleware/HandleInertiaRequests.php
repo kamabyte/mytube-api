@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Http\Resources\Web\ChannelCard;
 use App\Models\Channel;
+use App\Models\User;
 use App\Support\DeletePin;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -29,6 +30,8 @@ class HandleInertiaRequests extends Middleware
                 'configured' => app(DeletePin::class)->isConfigured(),
                 'unlocked' => app(DeletePin::class)->isUnlocked($request),
             ],
+            // Непрочитанные — для бейджа на колокольчике; сам список панель грузит по клику.
+            'unreadNotifications' => fn () => User::owner()->unreadNotifications()->count(),
             // Подписки в боковой панели — все каналы, и те, где ещё ничего не скачано
             // (каталог «по запросу»). Лениво: частичные перезагрузки
             // (подгрузка следующей страницы) их не запрашивают.

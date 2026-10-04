@@ -3,9 +3,11 @@
 use App\Http\Controllers\Web\ChannelController;
 use App\Http\Controllers\Web\DownloadRequestController;
 use App\Http\Controllers\Web\HomeController;
+use App\Http\Controllers\Web\NotificationController;
 use App\Http\Controllers\Web\SearchController;
 use App\Http\Controllers\Web\StatisticsController;
 use App\Http\Controllers\Web\VideoController;
+use App\Http\Controllers\Web\VideoFileController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -15,10 +17,11 @@ Route::get('/', HomeController::class)->name('home');
 
 Route::get('/videos', [VideoController::class, 'index'])->name('videos.index');
 Route::get('/videos/lookup', [VideoController::class, 'lookup'])->name('videos.lookup');
-Route::get('/videos/downloaded', [VideoController::class, 'downloaded'])->name('videos.downloaded');
 // {catalogVideo} — видео из каталога, скачанное или нет (привязка — в AppServiceProvider).
 Route::get('/watch/{catalogVideo}', [VideoController::class, 'show'])->name('watch');
-Route::delete('/videos/{video}', [VideoController::class, 'destroy'])->name('videos.destroy');
+// Удалить можно и нескачанное видео каталога — тогда оно просто скрывается навсегда.
+Route::delete('/videos/{catalogVideo}', [VideoController::class, 'destroy'])->name('videos.destroy');
+Route::delete('/videos/{video}/file', [VideoFileController::class, 'destroy'])->name('videos.file.destroy');
 Route::post('/videos/{catalogVideo}/download', [DownloadRequestController::class, 'store'])->name('videos.download.store');
 Route::delete('/videos/{catalogVideo}/download', [DownloadRequestController::class, 'destroy'])->name('videos.download.destroy');
 
@@ -29,4 +32,10 @@ Route::patch('/channels/{channel}', [ChannelController::class, 'update'])->name(
 Route::delete('/channels/{channel}', [ChannelController::class, 'destroy'])->name('channels.destroy');
 
 Route::get('/search', SearchController::class)->name('search');
+
+// Колокольчик в шапке (JSON для выпадающей панели).
+Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+Route::post('/notifications/read', [NotificationController::class, 'markAllRead'])->name('notifications.read');
+Route::patch('/notifications/{notification}', [NotificationController::class, 'update'])->name('notifications.update');
+Route::delete('/notifications', [NotificationController::class, 'destroy'])->name('notifications.destroy');
 Route::get('/statistics', StatisticsController::class)->name('statistics');

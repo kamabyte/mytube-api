@@ -185,7 +185,9 @@ it('removes a video for good: the file goes, the row stays out of every queue', 
     File::put($this->mediaRoot."/videos/{$channel->id}/{$video->id}0.mp4", 'video-bytes');
     Storage::disk('public')->put('thumbnails/videos/rm-1.jpg', 'thumb');
 
-    $this->delete("/videos/{$video->id}", ['pin' => '2468'])
+    // Со страницы самого видео — на канал: этой страницы больше нет.
+    $this->from("/watch/{$video->id}")
+        ->delete("/videos/{$video->id}", ['pin' => '2468'])
         ->assertRedirect("/channels/{$channel->id}");
 
     $video = Video::withoutGlobalScopes()->findOrFail($video->id);
@@ -297,4 +299,69 @@ it('rejects a channel with both parsers turned off or a date in the future', fun
         ->assertSessionHasErrors(['sync_from' => 'Дата не может быть в будущем.']);
 
     expect(Channel::query()->count())->toBe(0);
+});
+
+it('deletes a video from a card and stays on the page, catalog videos included', function (): void {
+    $channel = Channel::query()->create(['external_id' => 'UC-card', 'name' => 'Card', 'download_on_demand' => true]);
+    $downloaded = storedVideo($channel, 'card-1');
+    $catalog = storedVideo($channel, 'card-2', ['is_downloaded' => false, 'downloaded_at' => null, 'file_size' => null]);
+
+    $this->from("/channels/{$channel->id}")
+        ->delete("/videos/{$downloaded->id}", ['pin' => '2468'])
+        ->assertRedirect("/channels/{$channel->id}");
+
+    $this->from('/search?q=card')
+        ->delete("/videos/{$catalog->id}", ['pin' => '2468'])
+        ->assertRedirect('/search?q=card');
+
+    expect(Video::withoutGlobalScopes()->whereKey([$downloaded->id, $catalog->id])->whereNotNull('removed_at')->count())->toBe(2);
+    $this->get("/watch/{$catalog->id}")->assertNotFound();
+});
+
+it('removes only the file: the video stays in the catalog and can be downloaded again', function (): void {
+    $channel = Channel::query()->create(['external_id' => 'UC-unload', 'name' => 'Unload', 'download_on_demand' => true]);
+    $video = storedVideo($channel, 'unload-1', ['download_requested_at' => now()->subDay()]);
+    File::ensureDirectoryExists($this->mediaRoot."/videos/{$channel->id}");
+    File::put($this->mediaRoot."/videos/{$channel->id}/{$video->id}.mp4", 'video-bytes');
+    File::put($this->mediaRoot."/videos/{$channel->id}/{$video->id}.ru.vtt", 'subs');
+    Storage::disk('public')->put('thumbnails/videos/unload-1.jpg', 'thumb');
+
+    // Удаление файла — под тем же PIN, что и удаление видео.
+    $this->delete("/videos/{$video->id}/file")->assertSessionHasErrors('pin');
+
+    $this->from("/channels/{$channel->id}")
+        ->delete("/videos/{$video->id}/file", ['pin' => '2468'])
+        ->assertRedirect("/channels/{$channel->id}")
+        ->assertInertiaFlash('toast.type', 'success');
+
+    $video = Video::withoutGlobalScopes()->findOrFail($video->id);
+
+    expect(File::exists($this->mediaRoot."/videos/{$channel->id}/{$video->id}.mp4"))->toBeFalse()
+        ->and(File::exists($this->mediaRoot."/videos/{$channel->id}/{$video->id}.ru.vtt"))->toBeFalse()
+        ->and($video->is_downloaded)->toBeFalse()
+        ->and($video->is_unavailable)->toBeFalse()
+        ->and($video->removed_at)->toBeNull()
+        ->and($video->download_requested_at)->toBeNull()
+        ->and($video->file_size)->toBeNull()
+        // Обложка остаётся — видео по-прежнему в каталоге.
+        ->and($video->getRawOriginal('thumbnail'))->toBe('thumbnails/videos/unload-1.jpg');
+    Storage::disk('public')->assertExists('thumbnails/videos/unload-1.jpg');
+
+    // Не в очереди (канал «по запросу»), но открывается и просится снова.
+    expect(Video::withoutGlobalScopes()->awaitingDownload()->count())->toBe(0);
+    $this->get("/watch/{$video->id}")->assertInertia(fn (Assert $page) => $page->where('video.download_state', 'available'));
+});
+
+it('refuses to remove the file of a video that its channel would download again', function (): void {
+    $channel = Channel::query()->create(['external_id' => 'UC-auto', 'name' => 'Auto']);
+    $video = storedVideo($channel, 'auto-1');
+    File::ensureDirectoryExists($this->mediaRoot."/videos/{$channel->id}");
+    File::put($this->mediaRoot."/videos/{$channel->id}/{$video->id}.mp4", 'video-bytes');
+
+    $this->delete("/videos/{$video->id}/file", ['pin' => '2468'])
+        ->assertRedirect()
+        ->assertSessionHasErrors('file');
+
+    expect(File::exists($this->mediaRoot."/videos/{$channel->id}/{$video->id}.mp4"))->toBeTrue()
+        ->and($video->fresh()->is_downloaded)->toBeTrue();
 });
