@@ -17,7 +17,7 @@ MyTube — самостоятельно размещаемая видеотек�
 ┌───────────────────────────────────┐      ┌─────────────────────────────┐
 │ scheduler  (этот репозиторий)     │      │ worker  (mytube-workers)    │
 │ php artisan schedule:work         │      │ Python + yt-dlp + ffmpeg    │
-│ youtube:parse-videos раз в 10 мин │      │ скачивает и транскодирует   │
+│ youtube:parse-videos раз в минуту │      │ скачивает и транскодирует   │
 └────────────────┬──────────────────┘      └──────────────┬──────────────┘
                  │ новые видео                            │ is_downloaded, файл
                  ▼                                        ▼
@@ -35,9 +35,10 @@ MyTube — самостоятельно размещаемая видеотек�
 ```
 
 - **api** — этот репозиторий: веб-клиент, JSON API, отдача видео и субтитров.
-- **scheduler** — тот же код, команда `php artisan schedule:work`: раз в 10 минут
-  запускает `youtube:parse-videos`, которая через YouTube Data API находит новые
-  видео отслеживаемых каналов и плейлистов и записывает их в базу.
+- **scheduler** — тот же код, команда `php artisan schedule:work`: раз в минуту
+  запускает `youtube:parse-videos`, которая находит новые видео отслеживаемых
+  каналов (по RSS, без квоты) и плейлистов (через YouTube Data API, не чаще раза
+  в 10 минут) и записывает их в базу.
 - **worker** — отдельный репозиторий [`kamabyte/mytube-workers`](https://github.com/kamabyte/mytube-workers)
   (Python, yt-dlp). Работает с той же базой: берёт ещё не скачанные видео, кладёт
   файлы в `MEDIA_ROOT/videos/<channel_id>/<video_id>.<ext>`, отмечает видео

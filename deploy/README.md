@@ -12,7 +12,7 @@ MyTube работает в Docker под управлением **Dokploy**: с�
 |---|---|---|
 | `api` | Laravel + nginx (serversideup/php 8.5), миграции при старте; проксирует WebSocket `/app/` в `reverb` | домен стека в Dokploy; `http://<сервер>:8000` для ТВ-клиентов |
 | `reverb` | `php artisan reverb:start` — WebSocket для уведомлений «видео готово»; наружу не опубликован | — |
-| `scheduler` | `php artisan schedule:work` — разбор каналов раз в 10 минут | — |
+| `scheduler` | `php artisan schedule:work` — разбор каналов раз в минуту (плейлистов — раз в 10 минут) | — |
 | `worker` | `video-downloader worker` из [mytube-workers](https://github.com/kamabyte/mytube-workers) | — |
 
 ## Подготовка хоста
