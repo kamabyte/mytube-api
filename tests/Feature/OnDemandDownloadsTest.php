@@ -8,6 +8,7 @@ use Google\Service\YouTube\ChannelListResponse;
 use Google\Service\YouTube\PlaylistItemListResponse;
 use Google\Service\YouTube\Resource\Channels as ChannelsResource;
 use Google\Service\YouTube\Resource\PlaylistItems as PlaylistItemsResource;
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -202,4 +203,20 @@ it('keeps catalog videos out of the TV API', function (): void {
     $video = catalogVideo(onDemandChannel('tv'), 'tv-1');
 
     $this->getJson("/api/videos/{$video->id}")->assertNotFound();
+});
+
+it('registers the catalog binding even when routes are cached, as in production', function (): void {
+    // route:cache — как при старте образа: файлы маршрутов тогда не выполняются,
+    // и Route::bind оттуда не срабатывал — каталожные видео отвечали 404.
+    $this->artisan('route:cache')->assertSuccessful();
+
+    try {
+        $app = require base_path('bootstrap/app.php');
+        $app->make(Kernel::class)->bootstrap();
+
+        expect($app->routesAreCached())->toBeTrue()
+            ->and($app['router']->getBindingCallback('catalogVideo'))->not->toBeNull();
+    } finally {
+        $this->artisan('route:clear');
+    }
 });
