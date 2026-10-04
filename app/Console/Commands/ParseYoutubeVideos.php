@@ -6,6 +6,7 @@ use App\Models\Channel;
 use App\Models\Video;
 use App\Support\LibraryCleaner;
 use App\Support\StoresPublicThumbnail;
+use App\Support\Youtube\VideoThumbnail;
 use Carbon\Carbon;
 use DateInterval;
 use Google\Service\YouTube;
@@ -198,13 +199,8 @@ class ParseYoutubeVideos extends Command
                         }
 
                         $publishedAt = Carbon::parse($video->snippet->publishedAt);
-                        $thumbnailUrl = $video->snippet->thumbnails->medium->url
-                            ?? $video->snippet->thumbnails->high->url
-                            ?? $video->snippet->thumbnails->default->url
-                            ?? null;
-
                         $thumbnail = $thumbnailStore->replaceFromUrl(
-                            $thumbnailUrl,
+                            VideoThumbnail::bestUrl($video->snippet),
                             $existingVideos->get($video->id)?->getRawOriginal('thumbnail'),
                             'thumbnails/videos',
                             $video->id,
