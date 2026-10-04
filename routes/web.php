@@ -14,6 +14,7 @@ Route::get('/', HomeController::class)->name('home');
 
 Route::get('/videos', [VideoController::class, 'index'])->name('videos.index');
 Route::get('/videos/lookup', [VideoController::class, 'lookup'])->name('videos.lookup');
+Route::get('/videos/downloaded', [VideoController::class, 'downloaded'])->name('videos.downloaded');
 Route::get('/watch/{video}', [VideoController::class, 'show'])->name('watch');
 Route::delete('/videos/{video}', [VideoController::class, 'destroy'])->name('videos.destroy');
 

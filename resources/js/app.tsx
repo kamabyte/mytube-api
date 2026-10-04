@@ -1,6 +1,7 @@
 import '../css/app.css';
 
 import { createInertiaApp } from '@inertiajs/react';
+import { DownloadNotifier } from '@/components/download-notifier';
 import { FlashToaster } from '@/components/flash-toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
@@ -15,6 +16,7 @@ void createInertiaApp({
             <TooltipProvider delayDuration={300}>
                 {app}
                 <FlashToaster />
+                <DownloadNotifier />
             </TooltipProvider>
         );
     },
