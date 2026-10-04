@@ -87,6 +87,31 @@ function pickSubtitle(tracks: SubtitleTrack[], language: string | null): number 
     return russian !== -1 ? russian : 0;
 }
 
+function parseTimestamp(value: string): number {
+    return value.split(':').reduce((total, part) => total * 60 + Number(part), 0);
+}
+
+/** WebVTT от ffmpeg: блоки «начало --> конец» и текст до пустой строки. */
+function parseVtt(text: string): VTTCue[] {
+    return text
+        .replace(/\r/g, '')
+        .split(/\n{2,}/)
+        .flatMap((block) => {
+            const lines = block.split('\n');
+            const at = lines.findIndex((line) => line.includes('-->'));
+            if (at === -1) return [];
+            const [start, end] = lines[at].split('-->').map((part) => parseTimestamp(part.trim().split(/\s+/)[0]));
+            const body = lines.slice(at + 1).join('\n').trim();
+            return Number.isFinite(start) && Number.isFinite(end) && body ? [new VTTCue(start, end, body)] : [];
+        });
+}
+
+/**
+ * Загруженные дорожки по элементу и адресу: addTextTrack дорожку не удалить,
+ * поэтому при повторном включении берём уже созданную.
+ */
+const loadedTracks = new WeakMap<HTMLVideoElement, Map<string, TextTrack>>();
+
 function isTyping(target: EventTarget | null) {
     const el = target as HTMLElement | null;
     return !!el && (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable);
@@ -226,24 +251,54 @@ export function Player({
 
     // Субтитры рисуем сами (дорожка в режиме hidden): так они поднимаются
     // над панелью управления, а не прячутся под ней.
+    // VTT грузим сами, а не через <track>: пока такая дорожка грузится, браузер
+    // держит <video> и автозапуск ждёт, а первое извлечение — это ffmpeg по
+    // всему файлу. Дорожки из addTextTrack воспроизведение не задерживают.
     useEffect(() => {
         setCue('');
         if (!media) return;
-        const tracks = Array.from(media.textTracks);
-        tracks.forEach((track, index) => {
-            track.mode = index === subtitle ? 'hidden' : 'disabled';
-        });
-        const track = subtitle === null ? undefined : tracks[subtitle];
-        if (!track) return;
+        const source = subtitle === null ? undefined : subtitles[subtitle];
+        let track: TextTrack | undefined;
+        const controller = new AbortController();
 
         const update = () => {
-            const cues = Array.from(track.activeCues ?? []) as VTTCue[];
+            const cues = Array.from(track?.activeCues ?? []) as VTTCue[];
             setCue(cues.map((item) => item.getCueAsHTML().textContent ?? '').join('\n'));
         };
-        update();
-        track.addEventListener('cuechange', update);
-        return () => track.removeEventListener('cuechange', update);
-    }, [media, subtitle]);
+        // Safari видит и вшитые mov_text-дорожки — их тоже глушим.
+        const show = (selected: TextTrack | undefined) => {
+            Array.from(media.textTracks).forEach((item) => {
+                item.mode = item === selected ? 'hidden' : 'disabled';
+            });
+            track = selected;
+            if (!selected) return;
+            selected.addEventListener('cuechange', update);
+            update();
+        };
+
+        const loaded = loadedTracks.get(media) ?? new Map<string, TextTrack>();
+        loadedTracks.set(media, loaded);
+
+        if (!source) show(undefined);
+        else if (loaded.has(source.url)) show(loaded.get(source.url));
+        else {
+            show(undefined);
+            fetch(source.url, { signal: controller.signal })
+                .then((response) => (response.ok ? response.text() : Promise.reject(new Error(response.statusText))))
+                .then((text) => {
+                    const created = media.addTextTrack('subtitles', source.label, source.language ?? '');
+                    parseVtt(text).forEach((item) => created.addCue(item));
+                    loaded.set(source.url, created);
+                    show(created);
+                })
+                .catch(() => {});
+        }
+
+        return () => {
+            controller.abort();
+            track?.removeEventListener('cuechange', update);
+        };
+    }, [media, subtitle, subtitles]);
 
     useEffect(() => {
         const onChange = () => setFullscreen(!!container.current && document.fullscreenElement === container.current);
@@ -594,11 +649,7 @@ export function Player({
                     if (autoplayNext && next) setCountdown(COUNTDOWN);
                 }}
                 onError={() => setFailed(true)}
-            >
-                {subtitles.map((track) => (
-                    <track key={track.url} kind="subtitles" src={track.url} srcLang={track.language ?? undefined} label={track.label} />
-                ))}
-            </video>
+            />
 
             {cue && (
                 <div
