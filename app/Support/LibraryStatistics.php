@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Models\Video;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -16,9 +18,14 @@ class LibraryStatistics
      */
     public function summary(): array
     {
-        // Удалённые вручную видео — только метка «не скачивать снова», в архиве их нет.
-        $videoStats = DB::table('videos')
-            ->whereNull('removed_at')
+        // В архиве — скачанное и очередь. Удалённые вручную видео — только метка
+        // «не скачивать снова», а каталог каналов «по запросу» — лишь то, что
+        // можно попросить: ни то ни другое в архив не входит.
+        $videoStats = Video::catalog()
+            ->where(fn (Builder $query) => $query
+                ->where('is_downloaded', true)
+                ->orWhere(fn (Builder $query) => $query->awaitingDownload()))
+            ->toBase()
             ->selectRaw('COUNT(*) as total_videos')
             ->selectRaw('COALESCE(SUM(file_size), 0) as total_video_size')
             ->selectRaw('COALESCE(SUM(duration_seconds), 0) as total_duration_seconds')

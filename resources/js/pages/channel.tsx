@@ -1,10 +1,10 @@
-import { Head, Link } from '@inertiajs/react';
-import { Ellipsis, ListVideo, Play, Trash2, Video as VideoIcon } from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import { CloudDownload, Ellipsis, Hand, ListVideo, Play, Trash2, Video as VideoIcon } from 'lucide-react';
 import { useState } from 'react';
 import { ChannelAvatar } from '@/components/channel-avatar';
 import { DeleteDialog } from '@/components/delete-dialog';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { EmptyState } from '@/components/empty-state';
 import { SortControl } from '@/components/sort-control';
 import { InfiniteVideoGrid } from '@/components/video-grid';
@@ -17,9 +17,19 @@ interface Props {
     videos: Paginated<Video>;
 }
 
+/** Сколько видео канала можно попросить: каталог минус скачанное и очередь. */
+function availableCount(channel: ChannelSummary): number {
+    return Math.max((channel.catalog_count ?? 0) - (channel.videos_count ?? 0) - (channel.queued_count ?? 0), 0);
+}
+
 function ChannelMenu({ channel }: { channel: ChannelSummary }) {
     const [confirming, setConfirming] = useState(false);
     const kind = channel.is_playlist ? 'плейлист' : 'канал';
+    const available = availableCount(channel);
+
+    // reset: иначе бесконечная лента склеит обновлённую первую страницу с уже загруженными.
+    const setOnDemand = (value: boolean) =>
+        router.patch(`/channels/${channel.id}`, { download_on_demand: value }, { preserveScroll: true, reset: ['videos'] });
 
     return (
         <>
@@ -29,7 +39,20 @@ function ChannelMenu({ channel }: { channel: ChannelSummary }) {
                         <Ellipsis className="size-5" />
                     </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuContent align="end" className="w-64">
+                    {channel.download_on_demand ? (
+                        <DropdownMenuItem onSelect={() => setOnDemand(false)}>
+                            <CloudDownload />
+                            <span className="flex-1">Скачивать всё</span>
+                            {available > 0 && <span className="text-xs text-muted-foreground">+{available} в очередь</span>}
+                        </DropdownMenuItem>
+                    ) : (
+                        <DropdownMenuItem onSelect={() => setOnDemand(true)}>
+                            <Hand />
+                            Скачивать только по запросу
+                        </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem variant="destructive" onSelect={() => setConfirming(true)}>
                         <Trash2 />
                         Удалить {kind}
@@ -56,11 +79,14 @@ function ChannelMenu({ channel }: { channel: ChannelSummary }) {
 }
 
 export default function Channel({ channel, sort, videos }: Props) {
-    const first = videos.data[0];
+    // В ленте теперь и каталог — «Смотреть» начинает со скачанного.
+    const first = videos.data.find((video) => video.download_state === 'downloaded');
+    const available = availableCount(channel);
     const stats = [
         plural(channel.videos_count ?? 0, ['видео', 'видео', 'видео']),
         channel.total_duration_seconds ? formatHours(channel.total_duration_seconds) : null,
         channel.total_size_bytes ? formatBytes(channel.total_size_bytes) : null,
+        available > 0 ? `ещё ${available} можно скачать` : null,
     ].filter(Boolean);
 
     return (
@@ -81,12 +107,20 @@ export default function Channel({ channel, sort, videos }: Props) {
                 <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:items-end sm:text-left">
                     <ChannelAvatar channel={channel} className="size-28 text-2xl shadow-2xl ring-4 ring-background/60 md:size-36" />
                     <div className="min-w-0 flex-1">
-                        {channel.is_playlist && (
-                            <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-background/60 px-2.5 py-0.5 text-xs font-medium backdrop-blur">
-                                <ListVideo className="size-3.5" />
-                                Плейлист
-                            </span>
-                        )}
+                        <div className="mb-2 flex flex-wrap justify-center gap-1.5 empty:hidden sm:justify-start">
+                            {channel.is_playlist && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-background/60 px-2.5 py-0.5 text-xs font-medium backdrop-blur">
+                                    <ListVideo className="size-3.5" />
+                                    Плейлист
+                                </span>
+                            )}
+                            {channel.download_on_demand && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-background/60 px-2.5 py-0.5 text-xs font-medium backdrop-blur">
+                                    <Hand className="size-3.5" />
+                                    По запросу
+                                </span>
+                            )}
+                        </div>
                         <h1 className="font-display text-3xl font-bold text-balance md:text-5xl">{channel.name}</h1>
                         <p className="mt-2 text-sm text-muted-foreground md:text-base">
                             {stats.join(' · ')}
@@ -114,9 +148,9 @@ export default function Channel({ channel, sort, videos }: Props) {
             </div>
 
             {videos.data.length === 0 ? (
-                <EmptyState icon={VideoIcon} title="Скачанных видео пока нет">
-                    {channel.queued_count
-                        ? `В очереди ${plural(channel.queued_count, ['видео', 'видео', 'видео'])} — воркер скачает их по очереди, загляните позже.`
+                <EmptyState icon={VideoIcon} title="Видео пока нет">
+                    {channel.download_on_demand
+                        ? 'Список видео обновляется раз в 10 минут. Скачивается только то, что вы попросите.'
                         : 'Список видео обновляется раз в 10 минут, потом воркер скачает их по очереди.'}
                 </EmptyState>
             ) : (

@@ -276,7 +276,7 @@ it('passes the console options of a playlist through the web form', function ():
         'name' => 'Своё название',
         'thumbnail' => 'https://i.ytimg.com/custom.jpg',
         'source_channel' => 'https://www.youtube.com/@missing',
-    ])->assertRedirect()->assertInertiaFlash('toast.description', 'Канал-источник не найден — взята обложка плейлиста. Список видео обновится через минуту.');
+    ])->assertRedirect()->assertInertiaFlash('toast.description', 'Канал-источник не найден — взята обложка плейлиста. Список видео обновится через минуту, скачивание — в порядке очереди.');
 
     expect(Channel::query()->where('external_id', 'PL-named')->sole())
         ->name->toBe('Своё название')
