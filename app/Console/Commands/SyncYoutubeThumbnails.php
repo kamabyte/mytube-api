@@ -132,9 +132,9 @@ class SyncYoutubeThumbnails extends Command
 
                 foreach ($videos as $video) {
                     $processed++;
-                    $thumbnailUrl = VideoThumbnail::bestUrl($snippets->get($video->external_id));
+                    $thumbnailUrls = VideoThumbnail::urls($snippets->get($video->external_id));
 
-                    if (! $thumbnailUrl) {
+                    if (! $thumbnailUrls) {
                         $missing++;
 
                         continue;
@@ -142,8 +142,8 @@ class SyncYoutubeThumbnails extends Command
 
                     $currentThumbnail = $video->getRawOriginal('thumbnail');
 
-                    $thumbnail = $thumbnailStore->replaceFromUrl(
-                        $thumbnailUrl,
+                    $thumbnail = $thumbnailStore->replaceFromUrls(
+                        $thumbnailUrls,
                         $currentThumbnail,
                         'thumbnails/videos',
                         $video->external_id,

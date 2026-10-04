@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -14,12 +16,17 @@ class StoresPublicThumbnail
             return null;
         }
 
-        $response = Http::timeout(20)
-            ->retry(2, 250)
-            ->withHeaders([
-                'User-Agent' => 'mytube-thumbnail-fetcher/1.0',
-            ])
-            ->get($url);
+        try {
+            // Повторяем только сетевые сбои и 5xx: 404 у i.ytimg.com — обычное дело (нет maxres).
+            $response = Http::timeout(20)
+                ->retry(2, 250, fn ($exception) => ! $exception instanceof RequestException || $exception->response->serverError(), throw: false)
+                ->withHeaders([
+                    'User-Agent' => 'mytube-thumbnail-fetcher/1.0',
+                ])
+                ->get($url);
+        } catch (ConnectionException) {
+            return null;
+        }
 
         if (! $response->successful()) {
             return null;
@@ -35,7 +42,23 @@ class StoresPublicThumbnail
 
     public function replaceFromUrl(?string $url, ?string $currentPath, string $directory, string $filename): ?string
     {
-        $path = $this->storeFromUrl($url, $directory, $filename);
+        return $this->replaceFromUrls(array_filter([$url]), $currentPath, $directory, $filename);
+    }
+
+    /**
+     * @param  list<string>  $urls  Кандидаты по убыванию предпочтения: сохраняется первый скачавшийся.
+     */
+    public function replaceFromUrls(array $urls, ?string $currentPath, string $directory, string $filename): ?string
+    {
+        $path = null;
+
+        foreach ($urls as $url) {
+            $path = $this->storeFromUrl($url, $directory, $filename);
+
+            if ($path) {
+                break;
+            }
+        }
 
         if (! $path) {
             return $currentPath;

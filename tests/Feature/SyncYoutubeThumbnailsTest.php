@@ -13,11 +13,11 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     Storage::fake('public');
-    Http::fake(['*' => Http::response('hd-bytes', 200, ['Content-Type' => 'image/jpeg'])]);
 });
 
 it('refreshes thumbnails of downloaded videos in the best available quality', function (): void {
     makeChannelWithVideo('hd');
+    Http::fake(['*' => Http::response('hd-bytes', 200, ['Content-Type' => 'image/jpeg'])]);
 
     $videosResource = Mockery::mock(VideosResource::class);
     $videosResource->shouldReceive('listVideos')
@@ -48,6 +48,7 @@ it('refreshes thumbnails of downloaded videos in the best available quality', fu
 
 it('keeps the thumbnail of a video missing on YouTube', function (): void {
     makeChannelWithVideo('gone');
+    Http::fake(['*' => Http::response('hd-bytes', 200, ['Content-Type' => 'image/jpeg'])]);
 
     $videosResource = Mockery::mock(VideosResource::class);
     $videosResource->shouldReceive('listVideos')->andReturn(new VideoListResponse(['items' => []]));
@@ -62,4 +63,31 @@ it('keeps the thumbnail of a video missing on YouTube', function (): void {
 
     Http::assertNothingSent();
     expect(Storage::disk('public')->get('thumbnails/videos/gone-downloaded.jpg'))->toBe('video-thumb');
+});
+
+it('falls back to a smaller size when the largest one is missing on the CDN', function (): void {
+    makeChannelWithVideo('nomax');
+
+    Http::fake([
+        'i.ytimg.com/vi/nomax-downloaded/maxresdefault.jpg' => Http::response('', 404),
+        'i.ytimg.com/vi/nomax-downloaded/sddefault.jpg' => Http::response('sd-bytes', 200, ['Content-Type' => 'image/jpeg']),
+    ]);
+
+    $videosResource = Mockery::mock(VideosResource::class);
+    $videosResource->shouldReceive('listVideos')->andReturn(new VideoListResponse(['items' => [[
+        'id' => 'nomax-downloaded',
+        'snippet' => ['thumbnails' => [
+            'maxres' => ['url' => 'https://i.ytimg.com/vi/nomax-downloaded/maxresdefault.jpg'],
+            'standard' => ['url' => 'https://i.ytimg.com/vi/nomax-downloaded/sddefault.jpg'],
+        ]],
+    ]]]));
+
+    $youtube = Mockery::mock(YouTube::class);
+    $youtube->videos = $videosResource;
+    app()->instance(YouTube::class, $youtube);
+
+    $this->artisan('youtube:sync-thumbnails', ['--refresh' => true])->assertSuccessful();
+
+    Http::assertSentCount(2);
+    expect(Storage::disk('public')->get('thumbnails/videos/nomax-downloaded.jpg'))->toBe('sd-bytes');
 });

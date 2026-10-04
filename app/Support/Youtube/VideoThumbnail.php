@@ -10,16 +10,15 @@ class VideoThumbnail
      */
     private const array SIZES = ['maxres', 'standard', 'high', 'medium', 'default'];
 
-    public static function bestUrl(mixed $snippet): ?string
+    /**
+     * Ссылки на все размеры из ответа API, от большей к меньшей.
+     *
+     * @return list<string>
+     */
+    public static function urls(mixed $snippet): array
     {
-        foreach (self::SIZES as $size) {
-            $url = $snippet?->thumbnails?->{$size}?->url;
+        $urls = array_map(fn (string $size) => $snippet?->thumbnails?->{$size}?->url, self::SIZES);
 
-            if ($url) {
-                return $url;
-            }
-        }
-
-        return null;
+        return array_values(array_filter($urls));
     }
 }

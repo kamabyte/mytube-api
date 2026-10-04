@@ -199,8 +199,8 @@ class ParseYoutubeVideos extends Command
                         }
 
                         $publishedAt = Carbon::parse($video->snippet->publishedAt);
-                        $thumbnail = $thumbnailStore->replaceFromUrl(
-                            VideoThumbnail::bestUrl($video->snippet),
+                        $thumbnail = $thumbnailStore->replaceFromUrls(
+                            VideoThumbnail::urls($video->snippet),
                             $existingVideos->get($video->id)?->getRawOriginal('thumbnail'),
                             'thumbnails/videos',
                             $video->id,
