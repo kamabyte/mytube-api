@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Web\ChannelCard;
 use App\Http\Resources\Web\VideoCard;
 use App\Models\Channel;
+use App\Models\Scopes\DownloadedVideo;
 use App\Models\Video;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -18,7 +19,7 @@ class HomeController extends Controller
 
     public function __invoke(): Response
     {
-        // Витрина вверху — последние скачанные.
+        // Витрина вверху — последние скачанные: её смотрят сразу.
         $featured = Video::query()
             ->with('channel:id,name,thumbnail,is_playlist')
             ->orderByRaw('downloaded_at IS NULL')
@@ -27,19 +28,24 @@ class HomeController extends Controller
             ->limit(self::FEATURED_SIZE)
             ->get();
 
-        $latest = Video::query()
+        // Дальше — весь каталог: и скачанное, и то, что можно попросить (с бейджами).
+        $latest = Video::catalog()
+            ->withDownloadState()
             ->with('channel:id,name,thumbnail,is_playlist')
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->limit(self::SHELF_SIZE)
             ->get();
 
-        // Полка на канал, каналы — по свежести последнего видео.
+        // Полка на канал, каналы — по свежести последнего видео каталога.
         $shelves = Channel::query()
-            ->has('videos')
-            ->withMax('videos', 'published_at')
-            ->withCount('videos')
+            ->whereHas('videos', Channel::catalogVideos()['videos'])
+            ->withMax(Channel::catalogVideos(), 'published_at')
+            ->withCount(['videos', ...Channel::catalogCount()])
             ->with(['videos' => fn ($query) => $query
+                ->withoutGlobalScope(DownloadedVideo::class)
+                ->whereNull('videos.removed_at')
+                ->withDownloadState()
                 ->orderByDesc('published_at')
                 ->orderByDesc('id')
                 ->limit(self::SHELF_SIZE)])

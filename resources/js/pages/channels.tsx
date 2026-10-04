@@ -3,7 +3,7 @@ import { Hand, ListVideo, Tv } from 'lucide-react';
 import { AddChannelDialog } from '@/components/add-channel-dialog';
 import { ChannelAvatar } from '@/components/channel-avatar';
 import { EmptyState, PageTitle } from '@/components/empty-state';
-import { formatBytes, formatRelative, plural } from '@/lib/format';
+import { channelVideoCounts, formatBytes, formatRelative } from '@/lib/format';
 import type { ChannelSummary } from '@/types';
 
 export default function Channels({ channels }: { channels: ChannelSummary[] }) {
@@ -39,7 +39,7 @@ export default function Channels({ channels }: { channels: ChannelSummary[] }) {
                             <div className="relative min-w-0">
                                 <h2 className="line-clamp-2 font-semibold leading-snug">{channel.name}</h2>
                                 <p className="mt-1 text-[13px] text-muted-foreground">
-                                    {plural(channel.videos_count ?? 0, ['видео', 'видео', 'видео'])}
+                                    {channelVideoCounts(channel)}
                                     {channel.total_size_bytes ? ` · ${formatBytes(channel.total_size_bytes)}` : ''}
                                 </p>
                                 {!!channel.queued_count && (

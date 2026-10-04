@@ -36,26 +36,75 @@ function webVideo(Channel $channel, string $slug, array $attributes = []): Video
     ], $attributes));
 }
 
-it('renders the home page with featured videos and channel shelves', function (): void {
+it('renders the home page with featured videos, the catalog and channel shelves', function (): void {
     $channel = webChannel('home');
     webVideo($channel, 'old', ['published_at' => now()->subDays(3)]);
     webVideo($channel, 'new', ['published_at' => now()->subDay()]);
-    webVideo($channel, 'pending', ['is_downloaded' => false]);
+    webVideo($channel, 'pending', ['is_downloaded' => false, 'published_at' => now()->subDays(5)]);
+    // Канал «по запросу», где ещё ничего не скачано, — тоже часть библиотеки.
+    $onDemand = webChannel('on-demand', ['download_on_demand' => true]);
+    webVideo($onDemand, 'catalog', ['is_downloaded' => false, 'published_at' => now()->subHours(2)]);
     webChannel('empty');
 
     $this->get('/')
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('home')
+            // Витрина — только скачанное: её смотрят сразу.
             ->has('featured', 2)
-            ->has('latest', 2)
-            ->where('latest.0.name', 'Video new')
-            ->where('latest.0.channel.name', 'Channel home')
-            // Каналы без скачанных видео на главной не показываются.
-            ->has('shelves', 1)
-            ->has('shelves.0.videos', 2)
-            ->where('shelves.0.videos_count', 2)
-            ->has('sidebarChannels', 1));
+            ->has('latest', 4)
+            // По дате публикации, вперемешку: каталог (2 ч назад), new, old, очередь.
+            ->where('latest.0.name', 'Video catalog')
+            ->where('latest.0.download_state', 'available')
+            ->where('latest.1.name', 'Video new')
+            ->where('latest.1.download_state', 'downloaded')
+            ->where('latest.1.channel.name', 'Channel home')
+            ->where('latest.3.name', 'Video pending')
+            ->where('latest.3.download_state', 'queued')
+            // Полки — у каналов с каталогом; у канала без единого видео полки нет.
+            ->has('shelves', 2)
+            ->where('shelves.0.name', 'Channel on-demand')
+            ->where('shelves.0.videos_count', 0)
+            ->where('shelves.0.catalog_count', 1)
+            ->has('shelves.1.videos', 3)
+            ->where('shelves.1.videos_count', 2)
+            ->where('shelves.1.catalog_count', 3)
+            // В подписках — все каналы.
+            ->has('sidebarChannels', 3));
+});
+
+it('shows the whole catalog in the feed', function (): void {
+    $channel = webChannel('feed-catalog', ['download_on_demand' => true]);
+    webVideo($channel, 'feed-done');
+    webVideo($channel, 'feed-catalog', ['is_downloaded' => false, 'published_at' => now()->addMinute()]);
+    webVideo($channel, 'feed-removed', ['is_downloaded' => false, 'is_unavailable' => true, 'removed_at' => now()]);
+
+    $this->get('/videos')
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('videos.data', 2)
+            ->where('videos.data.0.download_state', 'available')
+            ->where('videos.data.1.download_state', 'downloaded'));
+});
+
+it('counts downloaded and catalog videos for channel cards', function (): void {
+    $channel = webChannel('counts', ['download_on_demand' => true]);
+    webVideo($channel, 'counts-done', ['published_at' => now()->subYears(5)]);
+    webVideo($channel, 'counts-catalog', ['is_downloaded' => false, 'published_at' => now()->subDay()]);
+
+    $this->get('/channels')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('channels.0.videos_count', 1)
+            ->where('channels.0.catalog_count', 2));
+
+    $this->get('/search?q=counts')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('channels.0.videos_count', 1)
+            ->where('channels.0.catalog_count', 2));
+
+    // «Обновлён» — по самому свежему видео каталога, а не скачанному пять лет назад.
+    $this->get("/channels/{$channel->id}")
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('channel.latest_published_at', fn ($date) => now()->subDay()->isSameDay($date)));
 });
 
 it('serves thumbnails and the stream by host-relative urls', function (): void {

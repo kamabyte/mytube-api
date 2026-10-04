@@ -29,12 +29,12 @@ class HandleInertiaRequests extends Middleware
                 'configured' => app(DeletePin::class)->isConfigured(),
                 'unlocked' => app(DeletePin::class)->isUnlocked($request),
             ],
-            // Каналы в боковой панели. Лениво: частичные перезагрузки
+            // Подписки в боковой панели — все каналы, и те, где ещё ничего не скачано
+            // (каталог «по запросу»). Лениво: частичные перезагрузки
             // (подгрузка следующей страницы) их не запрашивают.
             'sidebarChannels' => fn () => ChannelCard::collection(
                 Channel::query()
-                    ->has('videos')
-                    ->select('id', 'name', 'thumbnail', 'is_playlist')
+                    ->select('id', 'name', 'thumbnail', 'is_playlist', 'download_on_demand')
                     ->orderBy('name')
                     ->get()
             )->resolve(),

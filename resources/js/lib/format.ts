@@ -99,3 +99,18 @@ export function initials(name: string): string {
         .map((word) => word[0]?.toUpperCase())
         .join('');
 }
+
+/**
+ * Видео канала одной строкой: скачанное и то, что ещё нет (каталог и очередь).
+ * «91 видео», «5 видео · ещё 500 не скачано», «505 видео в каталоге».
+ */
+export function channelVideoCounts(channel: { videos_count?: number; catalog_count?: number }): string {
+    const downloaded = channel.videos_count ?? 0;
+    const notDownloaded = Math.max((channel.catalog_count ?? downloaded) - downloaded, 0);
+    const videos = (count: number) => plural(count, ['видео', 'видео', 'видео']);
+
+    if (notDownloaded === 0) return videos(downloaded);
+    if (downloaded === 0) return `${videos(notDownloaded)} в каталоге`;
+
+    return `${videos(downloaded)} · ещё ${notDownloaded} не скачано`;
+}

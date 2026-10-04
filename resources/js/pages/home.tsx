@@ -5,7 +5,7 @@ import { EmptyState } from '@/components/empty-state';
 import { Hero } from '@/components/hero';
 import { Shelf } from '@/components/shelf';
 import { VideoCard } from '@/components/video-card';
-import { plural } from '@/lib/format';
+import { channelVideoCounts } from '@/lib/format';
 import { useContinueWatching } from '@/lib/watch-progress';
 import type { ChannelSummary, Video } from '@/types';
 
@@ -18,12 +18,13 @@ interface Props {
 export default function Home({ featured, latest, shelves }: Props) {
     const continueWatching = useContinueWatching();
 
-    if (featured.length === 0) {
+    // Пусто — только если нет ни скачанного, ни каталога.
+    if (featured.length === 0 && latest.length === 0) {
         return (
             <>
                 <Head title="Главная" />
                 <EmptyState icon={Tv} title="Пока пусто">
-                    Видео появятся здесь, как только воркер скачает первые ролики с каналов.
+                    Видео появятся здесь, как только парсер заберёт списки с каналов.
                 </EmptyState>
             </>
         );
@@ -33,7 +34,7 @@ export default function Home({ featured, latest, shelves }: Props) {
         <>
             <Head title="Главная" />
             <div className="flex flex-col gap-10 md:gap-12">
-                <Hero videos={featured} />
+                {featured.length > 0 && <Hero videos={featured} />}
 
                 {continueWatching.length > 0 && (
                     <Shelf title="Продолжить просмотр" icon={<History className="size-5 text-brand" />}>
@@ -59,7 +60,7 @@ export default function Home({ featured, latest, shelves }: Props) {
                                 <span className="truncate">{channel.name}</span>
                                 {channel.videos_count !== undefined && (
                                     <span className="hidden shrink-0 text-sm font-normal text-muted-foreground sm:inline">
-                                        {plural(channel.videos_count, ['видео', 'видео', 'видео'])}
+                                        {channelVideoCounts(channel)}
                                     </span>
                                 )}
                             </span>

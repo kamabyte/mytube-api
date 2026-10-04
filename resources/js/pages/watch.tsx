@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { VideoRow } from '@/components/video-card';
 import { useStoredToggle } from '@/hooks/use-stored-toggle';
-import { formatBytes, formatDate, formatRelative, plural } from '@/lib/format';
+import { channelVideoCounts, formatBytes, formatDate, formatRelative, plural } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { removeProgress } from '@/lib/watch-progress';
 import type { ChannelSummary, Video, VideoDetail } from '@/types';
@@ -154,7 +154,7 @@ export default function Watch({ video, channel, upNext }: Props) {
                                 <div className="min-w-0">
                                     <div className="truncate font-semibold group-hover:underline">{channel.name}</div>
                                     <div className="text-xs text-muted-foreground">
-                                        {plural(channel.videos_count ?? 0, ['видео', 'видео', 'видео'])}
+                                        {channelVideoCounts(channel)}
                                     </div>
                                 </div>
                             </Link>
