@@ -7,6 +7,7 @@ use App\Http\Controllers\Web\NotificationController;
 use App\Http\Controllers\Web\SearchController;
 use App\Http\Controllers\Web\StatisticsController;
 use App\Http\Controllers\Web\VideoController;
+use App\Http\Controllers\Web\VideoFileController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -18,7 +19,9 @@ Route::get('/videos', [VideoController::class, 'index'])->name('videos.index');
 Route::get('/videos/lookup', [VideoController::class, 'lookup'])->name('videos.lookup');
 // {catalogVideo} — видео из каталога, скачанное или нет (привязка — в AppServiceProvider).
 Route::get('/watch/{catalogVideo}', [VideoController::class, 'show'])->name('watch');
-Route::delete('/videos/{video}', [VideoController::class, 'destroy'])->name('videos.destroy');
+// Удалить можно и нескачанное видео каталога — тогда оно просто скрывается навсегда.
+Route::delete('/videos/{catalogVideo}', [VideoController::class, 'destroy'])->name('videos.destroy');
+Route::delete('/videos/{video}/file', [VideoFileController::class, 'destroy'])->name('videos.file.destroy');
 Route::post('/videos/{catalogVideo}/download', [DownloadRequestController::class, 'store'])->name('videos.download.store');
 Route::delete('/videos/{catalogVideo}/download', [DownloadRequestController::class, 'destroy'])->name('videos.download.destroy');
 

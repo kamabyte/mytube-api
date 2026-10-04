@@ -15,6 +15,8 @@ export function DeleteDialog({
     title,
     children,
     onDeleted,
+    confirmLabel = 'Удалить',
+    only,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -22,6 +24,9 @@ export function DeleteDialog({
     title: string;
     children: ReactNode;
     onDeleted?: () => void;
+    confirmLabel?: string;
+    /** Частичная перезагрузка: из меню карточки, чтобы не сбрасывать бесконечную ленту. */
+    only?: string[];
 }) {
     const { deletePin } = usePage<SharedProps>().props;
     const [pin, setPin] = useState('');
@@ -44,6 +49,7 @@ export function DeleteDialog({
             // Неверный PIN — редирект обратно на ту же страницу: диалог
             // должен остаться открытым и показать ошибку.
             preserveState: true,
+            ...(only ? { only } : {}),
             onStart: () => setProcessing(true),
             onFinish: () => setProcessing(false),
             onSuccess: () => onDeleted?.(),
@@ -114,7 +120,7 @@ export function DeleteDialog({
             open={open}
             onOpenChange={onOpenChange}
             title={title}
-            confirmLabel="Удалить"
+            confirmLabel={confirmLabel}
             processing={processing}
             confirmDisabled={!deletePin.configured || (needsPin && pin.length < 4)}
             onConfirm={submit}
