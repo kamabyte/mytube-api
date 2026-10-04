@@ -30,6 +30,10 @@ class VideoCard extends JsonResource
             'published_at' => $this->published_at,
             'downloaded_at' => $this->downloaded_at,
             'download_state' => DownloadState::of($this->resource),
+            // Для меню карточки: отменить можно только свой запрос; файл видео канала
+            // с автоскачиванием убирать бессмысленно — скачается снова.
+            'download_requested_at' => $this->download_requested_at,
+            'auto_download' => (bool) $this->auto_download,
             // resolve(): иначе Inertia развернёт вложенный ресурс как ответ,
             // с обёрткой {data: ...}.
             'channel' => $this->whenLoaded('channel', fn () => (new ChannelCard($this->channel))->resolve()),

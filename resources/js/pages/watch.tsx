@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { ChevronDown, Download, Ellipsis, ExternalLink, Trash2 } from 'lucide-react';
+import { ChevronDown, Download, Ellipsis, ExternalLink, FileX, Trash2 } from 'lucide-react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ChannelAvatar } from '@/components/channel-avatar';
 import { DeleteDialog } from '@/components/delete-dialog';
@@ -48,6 +48,7 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: (val
 
 function VideoMenu({ video }: { video: VideoDetail }) {
     const [confirming, setConfirming] = useState(false);
+    const [unloading, setUnloading] = useState(false);
 
     return (
         <>
@@ -64,18 +65,39 @@ function VideoMenu({ video }: { video: VideoDetail }) {
                             Открыть на YouTube
                         </a>
                     </DropdownMenuItem>
-                    {/* Удалять имеет смысл скачанное: у каталожного видео нет файла. */}
                     {video.stream_url && (
-                        <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem variant="destructive" onSelect={() => setConfirming(true)}>
-                                <Trash2 />
-                                Удалить видео
-                            </DropdownMenuItem>
-                        </>
+                        <DropdownMenuItem disabled={video.auto_download} onSelect={() => setUnloading(true)} className="items-start">
+                            <FileX className="mt-0.5" />
+                            <span>
+                                Удалить файл
+                                <span className="block text-xs text-muted-foreground">
+                                    {video.auto_download ? 'Канал скачивается целиком — файл скачался бы снова' : 'Видео останется в каталоге'}
+                                </span>
+                            </span>
+                        </DropdownMenuItem>
                     )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onSelect={() => setConfirming(true)}>
+                        <Trash2 />
+                        Удалить видео
+                    </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
+
+            <DeleteDialog
+                open={unloading}
+                onOpenChange={setUnloading}
+                url={`/videos/${video.id}/file`}
+                title="Удалить файл видео?"
+                confirmLabel="Удалить файл"
+                onDeleted={() => setUnloading(false)}
+            >
+                <p>
+                    «{video.name}» останется в каталоге с обложкой, а файл
+                    {video.file_size ? ` (${formatBytes(video.file_size)})` : ''} будет удалён с диска.
+                </p>
+                <p>Чтобы посмотреть его, видео нужно будет скачать снова.</p>
+            </DeleteDialog>
 
             <DeleteDialog
                 open={confirming}

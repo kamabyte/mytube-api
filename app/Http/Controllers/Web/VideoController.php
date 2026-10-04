@@ -145,8 +145,9 @@ class VideoController extends Controller
      * Удаляет файл видео насовсем: строка остаётся меткой, чтобы парсер
      * не завёл видео заново, а воркер не скачал его ещё раз.
      */
-    public function destroy(Request $request, Video $video, LibraryCleaner $cleaner, DeletePin $deletePin): RedirectResponse
+    public function destroy(Request $request, Video $catalogVideo, LibraryCleaner $cleaner, DeletePin $deletePin): RedirectResponse
     {
+        $video = $catalogVideo;
         $deletePin->authorize($request);
 
         try {
@@ -170,6 +171,13 @@ class VideoController extends Controller
             Toast::success("Видео «{$video->name}» удалено", $freed.'Скачиваться снова оно не будет.');
         }
 
-        return to_route('channels.show', $video->channel_id);
+        // Со страницы самого видео — на канал (страницы больше нет), из меню карточки — туда же, где были.
+        $fromWatchPage = parse_url(url()->previous(), PHP_URL_PATH) === route('watch', $video, absolute: false);
+
+        if ($fromWatchPage) {
+            return to_route('channels.show', $video->channel_id);
+        }
+
+        return back();
     }
 }

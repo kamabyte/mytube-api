@@ -82,12 +82,14 @@ services:
         source: /srv/mytube/data/backups
         target: /backups
         bind: { create_host_path: false }
-      # Видео отдаёт nginx по X-Accel-Redirect — только чтение.
+      # Видео отдаёт nginx по X-Accel-Redirect; запись нужна, чтобы из веба удалять
+      # видео и их файлы (LibraryCleaner) — права те же, что у воркера (group_add).
       - type: bind
         source: ${MEDIA_PATH:?задайте MEDIA_PATH}
         target: /media
-        read_only: true
         bind: { create_host_path: false }
+    # Группа с правом записи в медиатеку — как у воркера.
+    group_add: ["${MEDIA_GID:-1000}"]
     # ТВ-клиенты ходят на http://<сервер>:8000; веб — через домен стека в Dokploy.
     ports:
       - "8000:8080"
