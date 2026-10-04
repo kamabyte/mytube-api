@@ -46,6 +46,7 @@ class ChannelImporter
         bool $parsePopular = false,
         ?CarbonInterface $syncFrom = null,
         ?string $playlistId = null,
+        ?bool $downloadOnDemand = null,
     ): Channel {
         $part = $this->channelIdentifier($channelUrl);
 
@@ -90,6 +91,11 @@ class ChannelImporter
             $attributes['last_synced_at'] = $syncFrom;
         }
 
+        // null — не трогать: повторное добавление не меняет режим скачивания.
+        if ($downloadOnDemand !== null) {
+            $attributes['download_on_demand'] = $downloadOnDemand;
+        }
+
         return Channel::updateOrCreate(['external_id' => $item->id], $attributes);
     }
 
@@ -106,6 +112,7 @@ class ChannelImporter
         bool $parseLatest = true,
         bool $parsePopular = false,
         ?Closure $warn = null,
+        ?bool $downloadOnDemand = null,
     ): Channel {
         $warn ??= fn (string $message) => null;
         $playlistId = $this->playlistIdentifier($playlistUrl);
@@ -132,7 +139,7 @@ class ChannelImporter
 
         $existingPlaylist = Channel::query()->where('external_id', $playlistId)->first();
 
-        return Channel::updateOrCreate(['external_id' => $playlistId], [
+        $attributes = [
             'name' => $name ?: $playlist->getSnippet()->getTitle(),
             'thumbnail' => $this->thumbnailStore->replaceFromUrl(
                 $thumbnail ?: $this->pickThumbnailUrl($source?->snippet ?? $playlist->getSnippet()),
@@ -144,7 +151,13 @@ class ChannelImporter
             'is_playlist' => true,
             'parse_latest' => $parseLatest,
             'parse_popular' => $parsePopular,
-        ]);
+        ];
+
+        if ($downloadOnDemand !== null) {
+            $attributes['download_on_demand'] = $downloadOnDemand;
+        }
+
+        return Channel::updateOrCreate(['external_id' => $playlistId], $attributes);
     }
 
     /**

@@ -3,8 +3,12 @@ export interface ChannelSummary {
     name: string;
     thumbnail: string | null;
     is_playlist: boolean;
+    /** Каталог без автоскачивания: видео скачиваются, только когда их попросят. */
+    download_on_demand: boolean;
     videos_count?: number;
     queued_count?: number;
+    /** Скачанные и нет, без удалённых и недоступных. */
+    catalog_count?: number;
     total_size_bytes?: number | null;
     total_duration_seconds?: number | null;
     latest_published_at?: string | null;
@@ -20,16 +24,27 @@ export interface Video {
     view_count: number;
     published_at: string | null;
     downloaded_at: string | null;
+    download_state: DownloadState;
     channel?: ChannelSummary;
 }
+
+/** App\Support\DownloadState: где видео на пути в медиатеку. */
+export type DownloadState = 'available' | 'queued' | 'downloading' | 'downloaded' | 'unavailable';
 
 export interface VideoDetail extends Video {
     external_id: string;
     description: string | null;
     file_size: number | null;
-    stream_url: string;
+    /** null — видео из каталога, ещё не скачано. */
+    stream_url: string | null;
     subtitles: SubtitleTrack[];
+    download_requested_at: string | null;
+    /** В очереди и без запроса: один из источников качает всё сам. */
+    auto_download: boolean;
 }
+
+/** Скачанное видео — то, что умеет играть плеер. */
+export type PlayableVideo = VideoDetail & { stream_url: string };
 
 /** Дорожка субтитров, вшитая в файл; url отдаёт её в WebVTT. */
 export interface SubtitleTrack {

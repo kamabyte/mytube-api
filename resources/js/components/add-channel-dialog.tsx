@@ -63,6 +63,8 @@ export function AddChannelDialog() {
         url: '',
         parse_latest: true,
         parse_popular: false,
+        // Новые каналы по умолчанию — каталог: скачивается только то, что попросили.
+        download_on_demand: true,
         sync_from: '',
         playlist_id: '',
         name: '',
@@ -112,7 +114,7 @@ export function AddChannelDialog() {
                     <DialogHeader>
                         <DialogTitle>Новый канал или плейлист</DialogTitle>
                         <DialogDescription>
-                            Вставьте ссылку с YouTube. Список видео подтянется сразу, а скачивать их воркер будет по очереди.
+                            Вставьте ссылку с YouTube. Список видео подтянется сразу, а скачивать — всё подряд или только то, что попросите.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -148,10 +150,18 @@ export function AddChannelDialog() {
                         <Toggle checked={form.data.parse_latest} onChange={(value) => form.setData('parse_latest', value)} title="Следить за новыми видео">
                             {playlist ? 'Забирать всё, что добавлено в плейлист.' : 'Забирать свежие загрузки канала.'}
                         </Toggle>
-                        <Toggle checked={form.data.parse_popular} onChange={(value) => form.setData('parse_popular', value)} title="Скачивать и популярные видео">
+                        <Toggle checked={form.data.parse_popular} onChange={(value) => form.setData('parse_popular', value)} title="Добавлять и популярные видео">
                             Кроме новых — самые просматриваемые ролики {playlist ? 'плейлиста' : 'канала'} за всё время.
                         </Toggle>
                         {form.errors.parse_latest && <p className="text-sm text-destructive">{form.errors.parse_latest}</p>}
+                        <Toggle
+                            checked={form.data.download_on_demand}
+                            onChange={(value) => form.setData('download_on_demand', value)}
+                            title="Скачивать только по запросу"
+                        >
+                            Видео попадут в каталог с обложками, а скачается только то, что вы попросите. Режим можно сменить на странице{' '}
+                            {playlist ? 'плейлиста' : 'канала'}.
+                        </Toggle>
                     </div>
 
                     <div>
