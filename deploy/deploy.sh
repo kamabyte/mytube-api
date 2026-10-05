@@ -54,14 +54,19 @@ git branch -r --contains "${SHA}" | grep -q . || die "${SHA:0:7} is not pushed"
   || die "HEAD (${SHA:0:7}) is not origin/main. Push to main or pass a commit"
 
 log "Image ${SHA:0:7} (${TAG})"
-RUN=""
+# A commit can get several runs, and concurrency cancels all but the newest: skip cancelled ones.
+built=""
 for _ in $(seq 1 12); do
-  RUN="$(gh run list --workflow "${WORKFLOW}" --commit "${SHA}" --limit 1 --json databaseId -q '.[0].databaseId')"
-  [[ -n "${RUN}" ]] && break
+  RUN="$(gh run list --workflow "${WORKFLOW}" --commit "${SHA}" --limit 10 --json databaseId,conclusion \
+    -q '[.[] | select(.conclusion != "cancelled")][0].databaseId // empty')"
+  if [[ -n "${RUN}" ]]; then
+    gh run watch "${RUN}" --exit-status --interval 10 >/dev/null && { built=1; break; }
+    [[ "$(gh run view "${RUN}" --json conclusion -q .conclusion)" == cancelled ]] \
+      || die "image build failed: gh run view ${RUN} --log-failed"
+  fi
   sleep 5
 done
-[[ -n "${RUN}" ]] || die "no image build for ${SHA:0:7} in Actions"
-gh run watch "${RUN}" --exit-status --interval 10 >/dev/null || die "image build failed: gh run view ${RUN} --log-failed"
+[[ -n "${built}" ]] || die "no image build for ${SHA:0:7} in Actions"
 ok "built"
 
 # --- Stack ------------------------------------------------------------------------
