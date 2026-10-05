@@ -150,7 +150,7 @@ export default function Watch({ video, channel, upNext }: Props) {
                     upNext.length > 0 && 'xl:grid-cols-[minmax(0,1fr)_400px]',
                 )}
             >
-                <div className={cn('min-w-0', theater && 'bg-black lg:-mx-8 lg:-mt-6 xl:col-span-full')}>
+                <div className={cn('min-w-0', theater && 'lg:-mx-8 lg:-mt-6 xl:col-span-full')}>
                     {playable ? (
                         <Player
                             video={playable}

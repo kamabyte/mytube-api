@@ -610,7 +610,7 @@ export function Player({
             tabIndex={-1}
             className={cn(
                 'group/player @container relative overflow-hidden bg-black shadow-2xl shadow-black/20 outline-none select-none dark:shadow-black/60',
-                fullscreen ? 'flex items-center' : theater ? 'sm:rounded-2xl lg:rounded-none lg:shadow-none' : 'sm:rounded-2xl',
+                fullscreen ? 'flex items-center' : theater ? 'sm:rounded-2xl lg:mx-auto lg:max-w-[calc((100svh-10rem)*16/9)] lg:rounded-none lg:shadow-none' : 'sm:rounded-2xl',
                 !showControls && 'cursor-none',
             )}
             onPointerMove={(event) => {
@@ -630,7 +630,7 @@ export function Player({
                 poster={blocked ? (video.thumbnail ?? undefined) : undefined}
                 playsInline
                 preload="metadata"
-                className={cn('w-full bg-black', fullscreen ? 'h-full object-contain' : 'aspect-video', theater && !fullscreen && 'lg:max-h-[calc(100svh-10rem)] lg:object-contain')}
+                className={cn('w-full bg-black', fullscreen ? 'h-full object-contain' : 'aspect-video')}
                 onPointerDown={(event) => {
                     pointerType.current = event.pointerType;
                 }}
