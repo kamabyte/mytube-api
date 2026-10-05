@@ -20,6 +20,9 @@ class Subtitles
     /** Текстовые форматы, которые ffmpeg умеет перегнать в WebVTT. */
     private const array TEXT_CODECS = ['mov_text', 'subrip', 'webvtt', 'ass', 'ssa', 'text'];
 
+    /** Версия обработки VTT: смена сбрасывает готовые файлы и кеш браузеров (?v=). */
+    private const int FORMAT = 2;
+
     /**
      * @return list<array{track: int, language: string|null, label: string}>
      */
@@ -100,15 +103,16 @@ class Subtitles
             return null;
         }
 
+        File::put($temp, RollUpCaptions::smooth(File::get($temp)));
         File::move($temp, $target);
 
         return $target;
     }
 
-    /** Отпечаток файла: меняется, если видео перекачали. */
+    /** Отпечаток файла: меняется, если видео перекачали или поменялась обработка. */
     public function version(string $path): string
     {
-        return substr(md5($path.'|'.filesize($path).'|'.filemtime($path)), 0, 16);
+        return substr(md5($path.'|'.filesize($path).'|'.filemtime($path).'|'.self::FORMAT), 0, 16);
     }
 
     private function languageName(?string $language): ?string

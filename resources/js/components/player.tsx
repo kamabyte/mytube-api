@@ -106,6 +106,24 @@ function parseVtt(text: string): VTTCue[] {
         });
 }
 
+/** Метка времени слова в WebVTT: `слово <00:00:01.250>слово`. */
+const WORD_TIMESTAMP = /<((?:\d+:)?\d+:\d+\.\d+)>/;
+
+const entityDecoder = typeof document === 'undefined' ? null : document.createElement('textarea');
+
+/**
+ * Текст реплики на момент времени. Слова с метками (так сервер размечает
+ * бегущие автосубтитры YouTube) проявляются по одному, как на YouTube.
+ */
+function cueTextAt(cue: VTTCue, time: number): string {
+    if (!WORD_TIMESTAMP.test(cue.text) || !entityDecoder) return cue.getCueAsHTML().textContent ?? '';
+    const parts = cue.text.split(WORD_TIMESTAMP);
+    let text = parts[0];
+    for (let index = 1; index < parts.length && parseTimestamp(parts[index]) <= time; index += 2) text += parts[index + 1];
+    entityDecoder.innerHTML = text.replace(/<[^>]*>/g, '');
+    return entityDecoder.value.trimEnd();
+}
+
 /**
  * Загруженные дорожки по элементу и адресу: addTextTrack дорожку не удалить,
  * поэтому при повторном включении берём уже созданную.
@@ -271,10 +289,14 @@ export function Player({
         const source = subtitle === null ? undefined : subtitles[subtitle];
         let track: TextTrack | undefined;
         const controller = new AbortController();
+        let frame = 0;
 
+        // Пока на экране реплика со словами по времени, обновляем её каждый кадр.
         const update = () => {
+            cancelAnimationFrame(frame);
             const cues = Array.from(track?.activeCues ?? []) as VTTCue[];
-            setCue(cues.map((item) => item.getCueAsHTML().textContent ?? '').join('\n'));
+            setCue(cues.map((item) => cueTextAt(item, media.currentTime)).join('\n'));
+            if (cues.some((item) => WORD_TIMESTAMP.test(item.text))) frame = requestAnimationFrame(update);
         };
         // Safari видит и вшитые mov_text-дорожки — их тоже глушим.
         const show = (selected: TextTrack | undefined) => {
@@ -307,6 +329,7 @@ export function Player({
 
         return () => {
             controller.abort();
+            cancelAnimationFrame(frame);
             track?.removeEventListener('cuechange', update);
         };
     }, [media, subtitle, subtitles]);
