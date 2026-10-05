@@ -1,5 +1,5 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
+@import "tailwindcss";
+@import "tw-animate-css";
 
 @source '../views';
 
@@ -7,11 +7,13 @@
 
 @theme {
     --font-sans:
-        -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI Variable', 'Segoe UI', Roboto,
-        'Helvetica Neue', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+        -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter",
+        "Segoe UI Variable", "Segoe UI", Roboto, "Helvetica Neue", Arial,
+        sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
     --font-display:
-        -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI Variable Display', 'Segoe UI', Roboto,
-        'Helvetica Neue', Arial, sans-serif;
+        -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
+        "Segoe UI Variable Display", "Segoe UI", Roboto, "Helvetica Neue",
+        Arial, sans-serif;
 
     --radius-sm: calc(var(--radius) - 4px);
     --radius-md: calc(var(--radius) - 2px);
@@ -45,6 +47,7 @@
 
     --animate-fade-in: fade-in 0.4s ease-out both;
     --animate-bezel: bezel 0.6s ease-out both;
+    --animate-indeterminate: indeterminate 1.6s ease-in-out infinite;
 
     @keyframes fade-in {
         from {
@@ -54,6 +57,15 @@
         to {
             opacity: 1;
             transform: none;
+        }
+    }
+
+    @keyframes indeterminate {
+        from {
+            transform: translateX(-100%);
+        }
+        to {
+            transform: translateX(300%);
         }
     }
 
@@ -135,7 +147,7 @@
 
     body {
         @apply bg-background text-foreground;
-        font-feature-settings: 'cv11', 'ss01';
+        font-feature-settings: "cv11", "ss01";
     }
 
     ::selection {

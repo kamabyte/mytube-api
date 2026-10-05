@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Web\ChannelController;
+use App\Http\Controllers\Web\DownloadController;
 use App\Http\Controllers\Web\DownloadRequestController;
 use App\Http\Controllers\Web\HomeController;
 use App\Http\Controllers\Web\NotificationController;
@@ -32,6 +33,9 @@ Route::patch('/channels/{channel}', [ChannelController::class, 'update'])->name(
 Route::delete('/channels/{channel}', [ChannelController::class, 'destroy'])->name('channels.destroy');
 
 Route::get('/search', SearchController::class)->name('search');
+
+// Панель «Загрузки» в шапке (JSON).
+Route::get('/downloads', [DownloadController::class, 'index'])->name('downloads.index');
 
 // Колокольчик в шапке (JSON для выпадающей панели).
 Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');

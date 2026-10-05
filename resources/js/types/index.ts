@@ -33,7 +33,8 @@ export interface Video {
 }
 
 /** App\Support\DownloadState: где видео на пути в медиатеку. */
-export type DownloadState = 'available' | 'queued' | 'downloading' | 'downloaded' | 'unavailable';
+export type DownloadState =
+    "available" | "queued" | "downloading" | "downloaded" | "unavailable";
 
 export interface VideoDetail extends Video {
     external_id: string;
@@ -66,10 +67,10 @@ export interface Paginated<T> {
     };
 }
 
-export type VideoSort = 'new' | 'added' | 'popular' | 'old';
+export type VideoSort = "new" | "added" | "popular" | "old";
 
 export interface Toast {
-    type: 'success' | 'error';
+    type: "success" | "error";
     message: string;
     description?: string | null;
 }
@@ -79,5 +80,7 @@ export interface SharedProps {
     deletePin: { configured: boolean; unlocked: boolean };
     /** Непрочитанные уведомления — бейдж колокольчика. */
     unreadNotifications: number;
+    /** Очередь воркера — кнопка «Загрузки» в шапке. */
+    downloads: { queued: number; active: boolean };
     [key: string]: unknown;
 }

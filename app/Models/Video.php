@@ -18,9 +18,6 @@ class Video extends Model
     /** @use HasFactory<VideoFactory> */
     use HasFactory;
 
-    /** Строка running старше этого — воркер упал на полпути, а не качает. */
-    private const int STALE_RUN_HOURS = 6;
-
     protected $guarded = ['id'];
 
     protected $casts = [
@@ -84,10 +81,23 @@ class Video extends Model
     {
         $query->withExists([
             'channels as auto_download' => fn (Builder $query) => $query->where('download_on_demand', false),
-            'downloadRuns as downloading' => fn (Builder $query) => $query
-                ->where('status', VideoDownloadRun::RUNNING)
-                ->where('started_at', '>=', now()->subHours(self::STALE_RUN_HOURS)),
+            'downloadRuns as downloading' => fn (Builder $query) => $query->running(),
         ]);
+    }
+
+    /**
+     * Порядок, в котором воркер берёт задания (mytube-workers, DbJobSource):
+     * сначала запрошенные — по времени запроса, потом очередь каналов
+     * с автоскачиванием — от старых видео к новым.
+     *
+     * @param  Builder<static>  $query
+     */
+    public function scopeInDownloadOrder(Builder $query): void
+    {
+        $query->orderByRaw('videos.download_requested_at IS NULL')
+            ->orderBy('videos.download_requested_at')
+            ->orderBy('videos.published_at')
+            ->orderBy('videos.id');
     }
 
     protected static function booted(): void
