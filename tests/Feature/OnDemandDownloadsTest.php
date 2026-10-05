@@ -263,3 +263,45 @@ it('shows what can still be downloaded in the statistics', function (): void {
         ->assertJsonPath('0.video_count', 1)
         ->assertJsonPath('0.not_downloaded_count', 3);
 });
+
+it('lists the current download and the queue in the order the worker takes them', function (): void {
+    $auto = onDemandChannel('auto', onDemand: false);
+    $onDemand = onDemandChannel('lazy');
+
+    $running = catalogVideo($auto, 'q-running', ['published_at' => now()->subYear()]);
+    $autoOld = catalogVideo($auto, 'q-auto-old', ['published_at' => now()->subMonth()]);
+    $autoNew = catalogVideo($auto, 'q-auto-new', ['published_at' => now()->subDay()]);
+    $requestedLate = catalogVideo($onDemand, 'q-req-late', ['download_requested_at' => now()->subMinute()]);
+    $requestedEarly = catalogVideo($onDemand, 'q-req-early', ['download_requested_at' => now()->subHour()]);
+    catalogVideo($onDemand, 'q-catalog');
+    catalogVideo($auto, 'q-done', ['is_downloaded' => true, 'file_size' => 10]);
+
+    VideoDownloadRun::query()->create(['video_id' => $running->id, 'started_at' => now()->subMinutes(2), 'status' => 'running']);
+
+    $this->getJson('/downloads')
+        ->assertOk()
+        ->assertJsonPath('current.id', $running->id)
+        ->assertJsonPath('current.download_state', 'downloading')
+        ->assertJsonPath('current.channel.id', $auto->id)
+        ->assertJsonPath('queue.*.id', [$requestedEarly->id, $requestedLate->id, $autoOld->id, $autoNew->id])
+        ->assertJsonPath('queue.0.download_state', 'queued')
+        ->assertJsonPath('queued_count', 4);
+});
+
+it('ignores a stale run and shares the queue size with every page', function (): void {
+    $auto = onDemandChannel('auto2', onDemand: false);
+    $video = catalogVideo($auto, 'stale-1');
+    VideoDownloadRun::query()->create(['video_id' => $video->id, 'started_at' => now()->subDay(), 'status' => 'running']);
+
+    $this->getJson('/downloads')
+        ->assertOk()
+        ->assertJsonPath('current', null)
+        ->assertJsonPath('queue.*.id', [$video->id])
+        ->assertJsonPath('queued_count', 1);
+
+    $this->get('/')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('downloads.queued', 1)
+            ->where('downloads.active', false));
+});

@@ -1,16 +1,23 @@
-import { useEchoPublic } from '@laravel/echo-react';
-import { CircleCheck, X } from 'lucide-react';
-import { toast } from 'sonner';
-import { openNotification } from '@/components/notification-bell';
-import { type AppNotification, pushNotification } from '@/lib/notifications';
+import { router } from "@inertiajs/react";
+import { useEchoPublic } from "@laravel/echo-react";
+import { CircleCheck, X } from "lucide-react";
+import { toast } from "sonner";
+import { openNotification } from "@/components/notification-bell";
+import { type AppNotification, pushNotification } from "@/lib/notifications";
 
 /** App\Notifications\VideoReady::CHANNEL */
-const NOTIFICATIONS_CHANNEL = 'notifications';
+const NOTIFICATIONS_CHANNEL = "notifications";
 
 /** Событие Reverb (BroadcastNotificationCreated): данные уведомления + id и type. */
-type BroadcastNotification = Omit<AppNotification, 'read_at' | 'created_at'>;
+type BroadcastNotification = Omit<AppNotification, "read_at" | "created_at">;
 
-function VideoReadyToast({ id, notification }: { id: string | number; notification: AppNotification }) {
+function VideoReadyToast({
+    id,
+    notification,
+}: {
+    id: string | number;
+    notification: AppNotification;
+}) {
     return (
         <div className="relative flex w-[var(--width)] max-w-full items-center gap-3 rounded-[14px] border border-border bg-popover p-2.5 pr-8 text-popover-foreground shadow-lg">
             <button
@@ -22,7 +29,11 @@ function VideoReadyToast({ id, notification }: { id: string | number; notificati
                 className="flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline-none"
             >
                 {notification.thumbnail ? (
-                    <img src={notification.thumbnail} alt="" className="aspect-video w-24 shrink-0 rounded-lg bg-muted object-cover" />
+                    <img
+                        src={notification.thumbnail}
+                        alt=""
+                        className="aspect-video w-24 shrink-0 rounded-lg bg-muted object-cover"
+                    />
                 ) : (
                     <span className="aspect-video w-24 shrink-0 rounded-lg bg-muted" />
                 )}
@@ -31,8 +42,14 @@ function VideoReadyToast({ id, notification }: { id: string | number; notificati
                         <CircleCheck className="size-3.5" />
                         Видео готово
                     </span>
-                    <span className="mt-0.5 line-clamp-2 text-sm leading-snug font-semibold">{notification.title}</span>
-                    {notification.channel_name && <span className="mt-0.5 block truncate text-xs text-muted-foreground">{notification.channel_name}</span>}
+                    <span className="mt-0.5 line-clamp-2 text-sm leading-snug font-semibold">
+                        {notification.title}
+                    </span>
+                    {notification.channel_name && (
+                        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                            {notification.channel_name}
+                        </span>
+                    )}
                 </span>
             </button>
             <button
@@ -48,12 +65,25 @@ function VideoReadyToast({ id, notification }: { id: string | number; notificati
 }
 
 function Listener() {
-    useEchoPublic<BroadcastNotification>(NOTIFICATIONS_CHANNEL, '.notification.created', (payload) => {
-        const notification: AppNotification = { ...payload, read_at: null, created_at: new Date().toISOString() };
+    useEchoPublic<BroadcastNotification>(
+        NOTIFICATIONS_CHANNEL,
+        ".notification.created",
+        (payload) => {
+            const notification: AppNotification = {
+                ...payload,
+                read_at: null,
+                created_at: new Date().toISOString(),
+            };
 
-        pushNotification(notification);
-        toast.custom((id) => <VideoReadyToast id={id} notification={notification} />, { duration: 10_000 });
-    });
+            pushNotification(notification);
+            // Видео скачалось — очередь в шапке стала короче.
+            router.reload({ only: ["downloads"] });
+            toast.custom(
+                (id) => <VideoReadyToast id={id} notification={notification} />,
+                { duration: 10_000 },
+            );
+        },
+    );
 
     return null;
 }
