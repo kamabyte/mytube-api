@@ -45,6 +45,19 @@ MyTube работает в Docker под управлением **Dokploy**: с�
 
 ## Выкатить новую версию
 
+Одной командой с Mac — [`deploy/deploy.sh`](deploy.sh): ждёт сборку образа
+коммита в Actions, копирует `deploy/compose.yml` в Raw-стек Dokploy, ставит
+`API_TAG=sha-<коммит>` (`WORKERS_TAG` не трогает) и запускает Deploy.
+
+```sh
+echo 'DOKPLOY_URL=http://dokploy.home.internal' > deploy/deploy.env   # один раз, файл в .gitignore
+security add-generic-password -U -a "$USER" -s dokploy-api -w        # один раз, API-ключ Dokploy
+deploy/deploy.sh             # задеплоить origin/main
+deploy/deploy.sh <commit>    # откатиться / закрепить конкретный коммит
+```
+
+Нужны `gh`, `jq` и `curl`. Вручную — так:
+
 1. Push — Actions собирает образ с тегом `sha-<коммит>` для любой ветки и
    `latest` для `main`.
 2. Dokploy → mytube → Environment: `API_TAG` / `WORKERS_TAG` = нужный тег.

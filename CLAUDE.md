@@ -20,7 +20,7 @@ The same Laravel app serves a web client: Inertia v3 + React 19 + TypeScript + T
 - The catalog is part of the web library: `Video::catalog()` (+ `withDownloadState()` for `App\Support\DownloadState` badges) feeds home "Новые видео" and channel shelves, the `/videos` feed, search, the channel page and `/watch/{catalogVideo}` (binding in `AppServiceProvider` — route files don't run with `route:cache`). Downloaded-only by design: the home hero, up next (autoplay), continue watching, and the whole TV API (the `DownloadedVideo` global scope). Channel cards carry `videos_count` (downloaded) + `catalog_count` (`Channel::catalogCount()`); freshness uses `Channel::catalogVideos()`; the sidebar lists all channels.
 - Watch progress / "continue watching" is client-only (localStorage, `resources/js/lib/watch-progress.ts`).
 - Dev: `npm run dev` + `php artisan serve`. Checks: `npm run types:check`, `npm run build`, `php artisan test`.
-- Deploy: Docker image `ghcr.io/kamabyte/mytube-api` (built by GitHub Actions, `Dockerfile`, frontend built in the image), run by Dokploy from `deploy/compose.yml` together with the scheduler and `mytube-workers`. See `deploy/README.md`.
+- Deploy: Docker image `ghcr.io/kamabyte/mytube-api` (built by GitHub Actions, `Dockerfile`, frontend built in the image), run by Dokploy from `deploy/compose.yml` together with the scheduler and `mytube-workers`. Deploy with `deploy/deploy.sh` (waits for the image, syncs `deploy/compose.yml`, sets `API_TAG=sha-…`, deploys via the Dokploy API; `deploy/deploy.sh <commit>` rolls back). See `deploy/README.md`.
 
 ## Code style (PHP)
 
