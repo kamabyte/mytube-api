@@ -28,12 +28,12 @@ export function VolumeControl({
     return (
         <div className="group/volume flex items-center">
             <ControlButton label={level === 0 ? 'Включить звук (m)' : 'Выключить звук (m)'} onClick={onToggleMute}>
-                <Icon />
+                <Icon className="[&>path:first-child]:fill-current" />
             </ControlButton>
             {/* На тач-экранах громкость — кнопками телефона, ползунок не нужен. */}
             <div
                 className={cn(
-                    'w-0 overflow-hidden transition-[width] duration-200 pointer-coarse:hidden group-hover/volume:w-20 group-focus-within/volume:w-20',
+                    'w-0 overflow-hidden transition-[width] duration-200 pointer-coarse:hidden @max-xl:hidden group-hover/volume:w-20 group-focus-within/volume:w-20',
                     dragging && 'w-20',
                 )}
             >

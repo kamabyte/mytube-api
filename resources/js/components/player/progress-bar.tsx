@@ -75,7 +75,7 @@ export function ProgressBar({
             aria-valuemax={Math.round(duration)}
             aria-valuenow={Math.round(shown * duration)}
             aria-valuetext={formatDuration(shown * duration)}
-            className="group/bar relative flex h-4 cursor-pointer touch-none items-center"
+            className="group/bar relative flex h-5 cursor-pointer touch-none items-center @md:h-6"
             onPointerMove={(event) => {
                 const fraction = fractionAt(event.clientX);
                 if (event.pointerType === 'mouse') setHover(fraction);
@@ -107,19 +107,19 @@ export function ProgressBar({
         >
             <div
                 className={cn(
-                    'relative h-[3px] w-full bg-white/25 transition-[height] duration-100 group-hover/bar:h-[5px]',
-                    scrub !== null && 'h-[5px]',
+                    'relative h-1 w-full rounded-full bg-white/30 transition-[height] duration-100 group-hover/bar:h-1.5 @md:h-[5px]',
+                    scrub !== null && 'h-1.5 @md:h-1.5',
                 )}
             >
-                <div className="absolute inset-y-0 left-0 bg-white/40" style={{ width: `${buffered * 100}%` }} />
+                <div className="absolute inset-y-0 left-0 rounded-full bg-white/40" style={{ width: `${buffered * 100}%` }} />
                 {hover !== null && scrub === null && (
-                    <div className="absolute inset-y-0 left-0 bg-white/50" style={{ width: `${hover * 100}%` }} />
+                    <div className="absolute inset-y-0 left-0 rounded-full bg-white/50" style={{ width: `${hover * 100}%` }} />
                 )}
-                <div className="absolute inset-y-0 left-0 bg-brand" style={{ width: `${shown * 100}%` }} />
+                <div className="absolute inset-y-0 left-0 rounded-full bg-[#f03]" style={{ width: `${shown * 100}%` }} />
                 <div
                     className={cn(
-                        'absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 scale-0 rounded-full bg-brand transition-transform duration-100 group-hover/bar:scale-100',
-                        scrub !== null && 'scale-100',
+                        'absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#f03] transition-transform duration-100 group-hover/bar:scale-125 @md:size-3.5',
+                        scrub !== null && 'scale-125',
                     )}
                     style={{ left: `${shown * 100}%` }}
                 />

@@ -1,7 +1,7 @@
 import { router } from '@inertiajs/react';
 import {
     Airplay,
-    Captions,
+    ClosedCaption,
     FastForward,
     LoaderCircle,
     Maximize,
@@ -373,7 +373,7 @@ export function Player({
         if (subtitles.length === 0) return;
         const enable = subtitle === null;
         updatePrefs({ subtitles: enable });
-        flash(<Captions />, enable ? 'Вкл.' : 'Выкл.');
+        flash(<ClosedCaption />, enable ? 'Вкл.' : 'Выкл.');
     }, [subtitles, subtitle, updatePrefs, flash]);
 
     const togglePlay = useCallback(
@@ -688,7 +688,7 @@ export function Player({
                 <div
                     className={cn(
                         'pointer-events-none absolute inset-x-0 z-[5] flex justify-center px-[8%] text-center transition-[bottom] duration-200',
-                        showControls && countdown === null ? 'bottom-[4.5rem]' : 'bottom-[6%]',
+                        showControls && countdown === null ? 'bottom-20 @md:bottom-24' : 'bottom-[6%]',
                     )}
                 >
                     <p className="text-[clamp(13px,3.2cqw,34px)] leading-snug whitespace-pre-line text-white">
@@ -760,38 +760,40 @@ export function Player({
                 onPointerEnter={(event) => event.pointerType === 'mouse' && setOverControls(true)}
                 onPointerLeave={() => setOverControls(false)}
             >
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-linear-to-t from-black/80 to-transparent" />
-                <div className="relative px-2 sm:px-3">
-                    <div className="px-1">
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-linear-to-t from-black/65 via-black/20 to-transparent" />
+                <div className="relative px-2 pb-2 @md:px-4 @md:pb-3">
+                    <div className="px-1 @md:px-0.5">
                         <ProgressBar media={media} duration={duration} onScrubChange={setScrubbing} />
                     </div>
-                    <div className="flex items-center pb-1 text-white">
-                        <ControlButton label={paused ? 'Смотреть (k)' : 'Пауза (k)'} onClick={() => togglePlay(false)}>
-                            {ended ? <RotateCcw /> : paused ? <Play className="fill-current" /> : <Pause className="fill-current" />}
-                        </ControlButton>
-                        {next && (
-                            <ControlButton label="Следующее видео (Shift+N)" onClick={goNext}>
-                                <SkipForward className="fill-current" />
+                    <div className="flex items-center justify-between gap-1 pt-0.5 text-white @md:gap-3 @md:pt-1">
+                        <div className="flex min-w-0 items-center rounded-full bg-black/45 px-1 py-0.5 backdrop-blur-md @md:px-2 @md:py-1">
+                            <ControlButton label={paused ? 'Смотреть (k)' : 'Пауза (k)'} onClick={() => togglePlay(false)}>
+                                {ended ? <RotateCcw /> : paused ? <Play className="fill-current" style={{ strokeWidth: 0 }} /> : <Pause className="fill-current" style={{ strokeWidth: 0 }} />}
                             </ControlButton>
-                        )}
-                        <VolumeControl volume={prefs.volume} muted={prefs.muted} onVolume={setVolume} onToggleMute={toggleMute} />
-                        <div className="ml-1 text-[13px] whitespace-nowrap text-white/90 tabular-nums">
-                            {formatDuration(currentTime)}
-                            <span className="text-white/60"> / {formatDuration(duration)}</span>
+                            {next && (
+                                <ControlButton label="Следующее видео (Shift+N)" onClick={goNext} className="@max-lg:hidden">
+                                    <SkipForward className="fill-current" />
+                                </ControlButton>
+                            )}
+                            <VolumeControl volume={prefs.volume} muted={prefs.muted} onVolume={setVolume} onToggleMute={toggleMute} />
+                            <div className="pr-1 pl-0.5 text-[10px] whitespace-nowrap tabular-nums @xs:text-[11px] @md:pr-3 @md:pl-2 @md:text-sm">
+                                <span className="font-medium">{formatDuration(currentTime)}</span>
+                                <span className="text-white/80"> / {formatDuration(duration)}</span>
+                            </div>
                         </div>
 
-                        <div className="ml-auto flex items-center">
+                        <div className="flex shrink-0 items-center rounded-full bg-black/45 px-1 py-0.5 backdrop-blur-md @md:px-2 @md:py-1">
                             {subtitles.length > 0 && (
                                 <ControlButton
                                     label={subtitle === null ? 'Включить субтитры (c)' : 'Выключить субтитры (c)'}
                                     aria-pressed={subtitle !== null}
                                     onClick={toggleSubtitles}
                                     className={cn(
-                                        'relative after:absolute after:inset-x-2.5 after:bottom-1.5 after:h-[3px] after:rounded-full after:bg-brand after:transition-transform',
+                                        'relative after:absolute after:inset-x-2.5 after:bottom-1 after:h-[3px] after:rounded-full after:bg-[#f03] after:transition-transform',
                                         subtitle === null && 'after:scale-x-0',
                                     )}
                                 >
-                                    <Captions />
+                                    <ClosedCaption />
                                 </ControlButton>
                             )}
                             <ControlButton
@@ -807,13 +809,13 @@ export function Player({
                                 <ControlButton
                                     label={pip ? 'Выйти из режима «картинка в картинке» (i)' : 'Картинка в картинке (i)'}
                                     onClick={togglePip}
-                                    className="max-sm:hidden"
+                                    className="@max-2xl:hidden"
                                 >
                                     <PictureInPicture2 />
                                 </ControlButton>
                             )}
                             {airplay && (
-                                <ControlButton label="AirPlay" onClick={() => (ref.current as WebkitVideo | null)?.webkitShowPlaybackTargetPicker?.()}>
+                                <ControlButton label="AirPlay" onClick={() => (ref.current as WebkitVideo | null)?.webkitShowPlaybackTargetPicker?.()} className="@max-xl:hidden">
                                     <Airplay />
                                 </ControlButton>
                             )}
@@ -822,7 +824,7 @@ export function Player({
                                     label={theater ? 'Обычный режим (t)' : 'Режим кинотеатра (t)'}
                                     aria-pressed={theater}
                                     onClick={() => onTheaterChange(!theater)}
-                                    className="max-lg:hidden"
+                                    className="max-lg:hidden @max-2xl:hidden"
                                 >
                                     <RectangleHorizontal className={cn('transition-transform', !theater && 'scale-x-125')} />
                                 </ControlButton>
