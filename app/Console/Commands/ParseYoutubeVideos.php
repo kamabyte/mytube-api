@@ -26,6 +26,15 @@ class ParseYoutubeVideos extends Command
      */
     private const int PLAYLIST_INTERVAL_MINUTES = 10;
 
+    /**
+     * Премьеру или трансляцию перепроверяем через столько минут после начала
+     * эфира и дальше с тем же шагом, пока она не закончится.
+     */
+    private const int UPCOMING_RECHECK_MINUTES = 30;
+
+    /** Эфир, который так и не начался или не закончился за это время от начала, больше не ждём. */
+    private const int UPCOMING_GIVE_UP_DAYS = 7;
+
     public function handle(
         YouTube $youTube,
         StoresPublicThumbnail $thumbnailStore,
@@ -147,7 +156,10 @@ class ParseYoutubeVideos extends Command
                     $popularVideoIds = [];
                 }
 
-                if ($playlistItems === [] && $popularVideoIds === []) {
+                // Премьеры, встреченные до эфира: в новых загрузках их уже нет, курсор ушёл дальше.
+                $dueUpcomingIds = $parsePopular ? [] : $channel->upcomingVideos()->due()->pluck('external_id')->all();
+
+                if ($playlistItems === [] && $popularVideoIds === [] && $dueUpcomingIds === []) {
                     $this->writeInfo('Новых загрузок нет');
 
                     continue;
@@ -168,6 +180,8 @@ class ParseYoutubeVideos extends Command
                 if ($channel->is_playlist && ! $parsePopular) {
                     $this->syncPlaylistMembership($cleaner, $channel, $videoIds);
                 }
+
+                $videoIds = array_values(array_unique([...$videoIds, ...$dueUpcomingIds]));
 
                 // Удалённые вручную видео не трогаем: иначе парсер вернул бы им
                 // обложку, а то и перетащил бы в другой канал.
@@ -192,6 +206,7 @@ class ParseYoutubeVideos extends Command
                 $updatedVideosCount = 0;
                 $skippedShortVideosCount = 0;
                 $skippedLongVideosCount = 0;
+                $upcomingVideoIds = [];
 
                 foreach (array_chunk($videoIds, 50) as $videoIdsChunk) {
                     $this->logVeryVerbose('Запрос подробностей по видео: '.implode(',', $videoIdsChunk));
@@ -202,11 +217,21 @@ class ParseYoutubeVideos extends Command
                         ->get(['id', 'external_id', 'channel_id', 'thumbnail'])
                         ->keyBy('external_id');
 
-                    $videosResponse = $youTube->videos->listVideos('snippet,contentDetails,statistics', [
+                    $videosResponse = $youTube->videos->listVideos('snippet,contentDetails,statistics,liveStreamingDetails', [
                         'id' => implode(',', $videoIdsChunk),
                     ]);
 
                     foreach ($videosResponse->getItems() as $video) {
+                        // У премьеры и трансляции до конца эфира длительность 0: без этой
+                        // проверки они ушли бы в «короткие» и после эфира уже не нашлись.
+                        if (in_array($video->snippet->liveBroadcastContent, ['upcoming', 'live'], true)) {
+                            if ($this->awaitBroadcast($channel, $video)) {
+                                $upcomingVideoIds[] = $video->id;
+                            }
+
+                            continue;
+                        }
+
                         $durationSeconds = $this->durationInSeconds($video->contentDetails->duration ?? null);
 
                         if ($durationSeconds < config('app.videos.min_video_duration')) {
@@ -273,18 +298,25 @@ class ParseYoutubeVideos extends Command
                     }
                 }
 
+                // Вышедшие в эфир сохранены или отсеяны по длительности, пропавшие с YouTube ждать незачем.
+                $channel->upcomingVideos()
+                    ->whereIn('external_id', $videoIds)
+                    ->whereNotIn('external_id', $upcomingVideoIds)
+                    ->delete();
+
                 if (! $channel->is_playlist && $latestPublishedAt && (! $channel->last_synced_at || $latestPublishedAt->gt($channel->last_synced_at))) {
                     $channel->update(['last_synced_at' => $latestPublishedAt]);
                 }
 
                 $this->writeInfo("Добавлено видео: {$savedVideosCount}");
                 $this->logVerbose(sprintf(
-                    'Итог по каналу: обработано id=%d, создано=%d, обновлено=%d, пропущено коротких=%d, пропущено длинных=%d',
+                    'Итог по каналу: обработано id=%d, создано=%d, обновлено=%d, пропущено коротких=%d, пропущено длинных=%d, ждут эфира=%d',
                     count($videoIds),
                     $savedVideosCount,
                     $updatedVideosCount,
                     $skippedShortVideosCount,
                     $skippedLongVideosCount,
+                    count($upcomingVideoIds),
                 ));
 
             } catch (\Exception $e) {
@@ -311,6 +343,36 @@ class ParseYoutubeVideos extends Command
         }
 
         return $existing->channel_id;
+    }
+
+    /**
+     * Запоминает премьеру или идущую трансляцию, чтобы проверить её после эфира.
+     * false — ждать больше не стоит: эфир так и не начался или идёт слишком долго.
+     */
+    private function awaitBroadcast(Channel $channel, YouTube\Video $video): bool
+    {
+        $upcoming = $channel->upcomingVideos()->firstOrNew(['external_id' => $video->id]);
+        $details = $video->liveStreamingDetails;
+        $startsAt = $details?->actualStartTime ?? $details?->scheduledStartTime;
+        $startsAt = $startsAt ? Carbon::parse($startsAt) : ($upcoming->created_at ?? now());
+
+        if ($startsAt->lt(now()->subDays(self::UPCOMING_GIVE_UP_DAYS))) {
+            $this->logVerbose("Эфир {$video->id} не закончился за ".self::UPCOMING_GIVE_UP_DAYS." дней, больше не ждём: {$video->snippet->title}");
+
+            return false;
+        }
+
+        $upcoming->fill(['check_after' => $startsAt->max(now())->addMinutes(self::UPCOMING_RECHECK_MINUTES)])->save();
+
+        $this->logVeryVerbose(sprintf(
+            'Ждёт эфира %s (%s, проверим после %s): %s',
+            $video->id,
+            $video->snippet->liveBroadcastContent,
+            $upcoming->check_after->toDateTimeString(),
+            $video->snippet->title,
+        ));
+
+        return true;
     }
 
     /**
