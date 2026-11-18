@@ -64,8 +64,13 @@ export function Shelf({
     };
 
     return (
-        <section className="group/shelf">
-            <div className="mb-3 flex items-center gap-3">
+        <section
+            className="group/shelf -mx-4 md:-mx-6 lg:-mx-8"
+            // Long home pages have hundreds of cards. Keep offscreen rows out
+            // of layout/paint, retaining their measured height and scroll state.
+            style={{ contain: 'layout style', contentVisibility: 'auto', containIntrinsicBlockSize: 'auto 18rem' }}
+        >
+            <div className="mb-3 flex items-center gap-3 px-4 md:px-6 lg:px-8">
                 {icon}
                 <h2 className="font-display min-w-0 truncate text-xl font-semibold md:text-[22px]">
                     {href ? (
@@ -88,7 +93,7 @@ export function Shelf({
             </div>
             <div
                 ref={scroller}
-                className="scrollbar-none -mx-4 flex snap-x snap-proximity scroll-px-4 gap-4 overflow-x-auto overscroll-x-contain px-4 pb-2 md:-mx-6 md:scroll-px-6 md:px-6 lg:-mx-8 lg:scroll-px-8 lg:px-8"
+                className="scrollbar-none flex snap-x snap-proximity scroll-px-4 gap-4 overflow-x-auto overscroll-x-contain px-4 pb-2 md:scroll-px-6 md:px-6 lg:scroll-px-8 lg:px-8"
             >
                 {children.map((child, index) => (
                     <div key={index} className={cn('shrink-0 snap-start', itemClassName)}>
