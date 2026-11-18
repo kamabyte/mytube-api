@@ -1,6 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -22,27 +22,45 @@ export function Shelf({
     itemClassName?: string;
 }) {
     const scroller = useRef<HTMLDivElement>(null);
-    const [edges, setEdges] = useState({ start: true, end: false });
-
-    const update = useCallback(() => {
-        const el = scroller.current;
-        if (!el) return;
-        setEdges({ start: el.scrollLeft < 8, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 8 });
-    }, []);
+    const [edges, setEdges] = useState({ start: true, end: children.length <= 1 });
 
     useEffect(() => {
-        update();
         const el = scroller.current;
         if (!el) return;
-        const observer = new ResizeObserver(update);
-        observer.observe(el);
+        const first = el.firstElementChild;
+        const last = el.lastElementChild;
+
+        if (!first || !last) {
+            setEdges({ start: true, end: true });
+            return;
+        }
+
+        // Only edge visibility affects the arrows. Keep React out of the
+        // scrolling path instead of measuring layout and rendering every frame.
+        const observer = new IntersectionObserver((entries) => {
+            setEdges((previous) => {
+                let { start, end } = previous;
+
+                for (const entry of entries) {
+                    const visible = entry.isIntersecting && entry.intersectionRatio >= 0.99;
+                    if (entry.target === first) start = visible;
+                    if (entry.target === last) end = visible;
+                }
+
+                return start === previous.start && end === previous.end ? previous : { start, end };
+            });
+        }, { root: el, threshold: 0.99 });
+
+        observer.observe(first);
+        observer.observe(last);
         return () => observer.disconnect();
-    }, [update]);
+    }, [children.length]);
 
     const scrollBy = (direction: 1 | -1) => {
         const el = scroller.current;
         if (!el) return;
-        el.scrollBy({ left: direction * el.clientWidth * 0.85, behavior: 'smooth' });
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        el.scrollBy({ left: direction * el.clientWidth * 0.85, behavior: reducedMotion ? 'instant' : 'smooth' });
     };
 
     return (
@@ -70,8 +88,7 @@ export function Shelf({
             </div>
             <div
                 ref={scroller}
-                onScroll={update}
-                className="scrollbar-none -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto px-4 pb-2 md:-mx-6 md:scroll-px-6 md:px-6 lg:-mx-8 lg:scroll-px-8 lg:px-8"
+                className="scrollbar-none -mx-4 flex snap-x snap-proximity scroll-px-4 gap-4 overflow-x-auto overscroll-x-contain px-4 pb-2 md:-mx-6 md:scroll-px-6 md:px-6 lg:-mx-8 lg:scroll-px-8 lg:px-8"
             >
                 {children.map((child, index) => (
                     <div key={index} className={cn('shrink-0 snap-start', itemClassName)}>

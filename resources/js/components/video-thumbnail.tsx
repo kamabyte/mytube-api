@@ -53,7 +53,7 @@ export function VideoThumbnail({
             {badge && (
                 <span
                     className={cn(
-                        'absolute top-1.5 left-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11.5px] font-semibold backdrop-blur-sm [&>svg]:size-3',
+                        'absolute top-1.5 left-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11.5px] font-semibold pointer-fine:backdrop-blur-sm [&>svg]:size-3',
                         badge.className,
                     )}
                 >
@@ -62,7 +62,7 @@ export function VideoThumbnail({
                 </span>
             )}
             {video.duration_seconds > 0 && (
-                <span className="absolute right-1.5 bottom-1.5 rounded-md bg-black/75 px-1.5 py-0.5 text-[11.5px] font-semibold text-white tabular-nums backdrop-blur-sm">
+                <span className="absolute right-1.5 bottom-1.5 rounded-md bg-black/75 px-1.5 py-0.5 text-[11.5px] font-semibold text-white tabular-nums pointer-fine:backdrop-blur-sm">
                     {formatDuration(video.duration_seconds)}
                 </span>
             )}
