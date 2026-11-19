@@ -8,6 +8,8 @@ const media = () => window.matchMedia('(prefers-color-scheme: dark)');
 function apply(appearance: Appearance) {
     const dark = appearance === 'dark' || (appearance === 'system' && media().matches);
     document.documentElement.classList.toggle('dark', dark);
+    const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (themeColor) themeColor.content = dark ? '#0a0a0c' : '#f6f6f7';
 }
 
 function stored(): Appearance {
