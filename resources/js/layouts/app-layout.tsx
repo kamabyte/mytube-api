@@ -20,6 +20,7 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useChannelViews } from "@/lib/channel-views";
 import { cn } from "@/lib/utils";
 import type { SharedProps } from "@/types";
 
@@ -49,7 +50,10 @@ function isActive(item: NavItem, url: string) {
 
 function Sidebar() {
     const { url, props } = usePage<SharedProps>();
-    const channels = props.sidebarChannels ?? [];
+    const views = useChannelViews();
+    const channels = [...(props.sidebarChannels ?? [])].sort(
+        (a, b) => (views[b.id] ?? 0) - (views[a.id] ?? 0),
+    );
 
     return (
         <aside className="fixed inset-y-0 left-0 z-30 hidden w-[76px] flex-col border-r border-border/60 bg-background md:flex lg:w-64">

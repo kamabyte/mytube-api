@@ -6,7 +6,7 @@ import { Hero } from '@/components/hero';
 import { Shelf } from '@/components/shelf';
 import { VideoCard } from '@/components/video-card';
 import { channelVideoCounts } from '@/lib/format';
-import { useContinueWatching } from '@/lib/watch-progress';
+import { saveProgress, useContinueWatching } from '@/lib/watch-progress';
 import type { ChannelSummary, Video } from '@/types';
 
 interface Props {
@@ -39,7 +39,11 @@ export default function Home({ featured, latest, shelves }: Props) {
                 {continueWatching.length > 0 && (
                     <Shelf title="Продолжить просмотр" icon={<History className="size-5 text-brand" />}>
                         {continueWatching.map((entry) => (
-                            <VideoCard key={entry.video.id} video={entry.video} />
+                            <VideoCard
+                                key={entry.video.id}
+                                video={entry.video}
+                                onMarkWatched={() => saveProgress(entry.video, entry.duration, entry.duration)}
+                            />
                         ))}
                     </Shelf>
                 )}

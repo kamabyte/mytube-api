@@ -8,7 +8,7 @@ import type { DownloadState, Video } from '@/types';
 const STATE_BADGES: Partial<Record<DownloadState, { icon: LucideIcon; label: string; className: string }>> = {
     available: { icon: CloudDownload, label: 'Не скачано', className: 'bg-black/70 text-white' },
     queued: { icon: Clock, label: 'В очереди', className: 'bg-brand text-white' },
-    downloading: { icon: Loader2, label: 'Скачивается', className: 'bg-brand text-white [&>svg]:animate-spin' },
+    downloading: { icon: Loader2, label: 'Скачивается', className: 'bg-brand text-white motion-safe:[&>svg]:animate-spin' },
     unavailable: { icon: Ban, label: 'Недоступно', className: 'bg-black/70 text-white' },
 };
 
@@ -66,7 +66,11 @@ export function VideoThumbnail({
                     {formatDuration(video.duration_seconds)}
                 </span>
             )}
-            {progress > 0 && (
+            {video.download_state === 'downloading' ? (
+                <div aria-hidden className="absolute inset-x-0 bottom-0 h-1 overflow-hidden bg-black/40">
+                    <div className="h-full w-1/3 rounded-full bg-brand motion-safe:animate-indeterminate" />
+                </div>
+            ) : progress > 0 && (
                 <div className="absolute inset-x-0 bottom-0 h-[3px] bg-white/30">
                     <div className="h-full bg-brand" style={{ width: `${Math.max(progress * 100, 4)}%` }} />
                 </div>

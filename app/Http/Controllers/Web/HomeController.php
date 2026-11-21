@@ -19,16 +19,6 @@ class HomeController extends Controller
 
     public function __invoke(): Response
     {
-        // Витрина вверху — последние скачанные: её смотрят сразу.
-        $featured = Video::query()
-            ->with('channel:id,name,thumbnail,is_playlist')
-            ->orderByRaw('downloaded_at IS NULL')
-            ->orderByDesc('downloaded_at')
-            ->orderByDesc('published_at')
-            ->limit(self::FEATURED_SIZE)
-            ->get();
-
-        // Дальше — весь каталог: и скачанное, и то, что можно попросить (с бейджами).
         $latest = Video::catalog()
             ->withDownloadState()
             ->with('channel:id,name,thumbnail,is_playlist')
@@ -36,6 +26,7 @@ class HomeController extends Controller
             ->orderByDesc('id')
             ->limit(self::SHELF_SIZE)
             ->get();
+        $featured = $latest->take(self::FEATURED_SIZE);
 
         // Полка на канал, каналы — по свежести последнего видео каталога.
         $shelves = Channel::query()

@@ -1,5 +1,5 @@
 import { Link, router } from '@inertiajs/react';
-import { CloudDownload, EllipsisVertical, FileX, Trash2, X } from 'lucide-react';
+import { Check, CloudDownload, EllipsisVertical, FileX, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { ChannelAvatar } from '@/components/channel-avatar';
 import { DeleteDialog } from '@/components/delete-dialog';
@@ -18,7 +18,11 @@ import type { DownloadState, Video } from '@/types';
 const RELOAD_ONLY = ['deletePin'];
 
 /** Меню «⋮» карточки: скачать, отменить, убрать файл, удалить видео. */
-function VideoActions({ video, onChange }: { video: Video; onChange: (next: DownloadState | 'removed') => void }) {
+function VideoActions({ video, onChange, onMarkWatched }: {
+    video: Video;
+    onChange: (next: DownloadState | 'removed') => void;
+    onMarkWatched?: () => void;
+}) {
     const [dialog, setDialog] = useState<'file' | 'delete' | null>(null);
     const state = video.download_state;
     const canCancel = state === 'queued' && !!video.download_requested_at && !video.auto_download;
@@ -46,6 +50,12 @@ function VideoActions({ video, onChange }: { video: Video; onChange: (next: Down
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64">
+                    {onMarkWatched && (
+                        <DropdownMenuItem onSelect={onMarkWatched}>
+                            <Check />
+                            Отметить просмотренным
+                        </DropdownMenuItem>
+                    )}
                     {state === 'available' && (
                         <DropdownMenuItem onSelect={() => request('post', 'queued')}>
                             <CloudDownload />
@@ -69,7 +79,7 @@ function VideoActions({ video, onChange }: { video: Video; onChange: (next: Down
                             </span>
                         </DropdownMenuItem>
                     )}
-                    {(state === 'available' || canCancel || state === 'downloaded') && <DropdownMenuSeparator />}
+                    {(onMarkWatched || state === 'available' || canCancel || state === 'downloaded') && <DropdownMenuSeparator />}
                     <DropdownMenuItem variant="destructive" onSelect={() => setDialog('delete')}>
                         <Trash2 />
                         Удалить видео
@@ -126,10 +136,12 @@ export function VideoCard({
     video: initial,
     showChannel = true,
     className,
+    onMarkWatched,
 }: {
     video: Video;
     showChannel?: boolean;
     className?: string;
+    onMarkWatched?: () => void;
 }) {
     // Что поменяли из меню — поверх данных страницы, без её перезагрузки.
     const [override, setOverride] = useState<DownloadState | 'removed' | null>(null);
@@ -141,7 +153,11 @@ export function VideoCard({
         : initial;
 
     return (
-        <article className={cn('group relative flex flex-col gap-3', className)}>
+        <article className={cn(
+            'group relative flex flex-col gap-3',
+            className,
+            video.download_state === 'downloading' && 'animate-none opacity-80',
+        )}>
             <Link href={`/watch/${video.id}`} className="rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none">
                 <VideoThumbnail
                     video={video}
@@ -168,7 +184,7 @@ export function VideoCard({
                         <Meta video={video} />
                     </div>
                 </div>
-                <VideoActions video={video} onChange={setOverride} />
+                <VideoActions video={video} onChange={setOverride} onMarkWatched={onMarkWatched} />
             </div>
         </article>
     );

@@ -38,8 +38,8 @@ function webVideo(Channel $channel, string $slug, array $attributes = []): Video
 
 it('renders the home page with featured videos, the catalog and channel shelves', function (): void {
     $channel = webChannel('home');
-    webVideo($channel, 'old', ['published_at' => now()->subDays(3)]);
-    webVideo($channel, 'new', ['published_at' => now()->subDay()]);
+    webVideo($channel, 'old', ['published_at' => now()->subDays(3), 'downloaded_at' => now()]);
+    webVideo($channel, 'new', ['published_at' => now()->subDay(), 'downloaded_at' => now()->subHours(12)]);
     webVideo($channel, 'pending', ['is_downloaded' => false, 'published_at' => now()->subDays(5)]);
     // Канал «по запросу», где ещё ничего не скачано, — тоже часть библиотеки.
     $onDemand = webChannel('on-demand', ['download_on_demand' => true]);
@@ -50,8 +50,12 @@ it('renders the home page with featured videos, the catalog and channel shelves'
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('home')
-            // Витрина — только скачанное: её смотрят сразу.
-            ->has('featured', 2)
+            ->has('featured', 4)
+            ->where('featured.0.name', 'Video catalog')
+            ->where('featured.0.download_state', 'available')
+            ->where('featured.1.name', 'Video new')
+            ->where('featured.2.name', 'Video old')
+            ->where('featured.3.download_state', 'queued')
             ->has('latest', 4)
             // По дате публикации, вперемешку: каталог (2 ч назад), new, old, очередь.
             ->where('latest.0.name', 'Video catalog')

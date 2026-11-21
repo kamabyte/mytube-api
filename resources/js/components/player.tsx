@@ -21,6 +21,7 @@ import {
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatDuration } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { recordChannelView } from '@/lib/channel-views';
 import { getProgress, resumePosition, saveProgress } from '@/lib/watch-progress';
 import type { PlayableVideo, SubtitleTrack, Video } from '@/types';
 import { ControlButton } from './player/control-button';
@@ -161,6 +162,7 @@ export function Player({
 }) {
     const container = useRef<HTMLDivElement>(null);
     const ref = useRef<HTMLVideoElement | null>(null);
+    const countedMedia = useRef<HTMLVideoElement | null>(null);
     const [media, setMedia] = useState<HTMLVideoElement | null>(null);
     const lastSave = useRef(0);
     const pointerType = useRef('mouse');
@@ -670,7 +672,13 @@ export function Player({
                     poke();
                 }}
                 onWaiting={() => setWaiting(true)}
-                onPlaying={() => setWaiting(false)}
+                onPlaying={(event) => {
+                    setWaiting(false);
+                    if (countedMedia.current !== event.currentTarget) {
+                        countedMedia.current = event.currentTarget;
+                        recordChannelView(video.channel_id);
+                    }
+                }}
                 onCanPlay={() => setWaiting(false)}
                 onSeeked={() => setWaiting(false)}
                 onVolumeChange={(event) => updatePrefs({ volume: event.currentTarget.volume, muted: event.currentTarget.muted })}

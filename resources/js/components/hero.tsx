@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, Pause, Play, Tv } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Info, Pause, Play, Tv } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChannelAvatar } from '@/components/channel-avatar';
 import { formatDuration, formatRelative } from '@/lib/format';
@@ -158,7 +158,7 @@ export function Hero({ videos }: { videos: Video[] }) {
         <section
             ref={container}
             role="region"
-            aria-label="Рекомендуемые видео"
+            aria-label="Последние видео"
             aria-roledescription="карусель"
             className="relative isolate overflow-hidden rounded-3xl bg-zinc-900 text-white shadow-xl shadow-black/10 dark:shadow-black/40"
             onPointerEnter={(event) => event.pointerType === 'mouse' && setHovered(true)}
@@ -251,8 +251,9 @@ function HeroSlide({ video, position, label, selected, first, ratio, controls }:
     ratio: number;
     controls: boolean;
 }) {
-    const resumable = ratio > 0.02 && ratio < 1;
-    const fresh = video.downloaded_at && Date.now() - new Date(video.downloaded_at).getTime() < 3 * 86400_000;
+    const playable = video.download_state === 'downloaded';
+    const resumable = playable && ratio > 0.02 && ratio < 1;
+    const fresh = video.published_at && Date.now() - new Date(video.published_at).getTime() < 3 * 86400_000;
 
     return (
         <div
@@ -300,7 +301,7 @@ function HeroSlide({ video, position, label, selected, first, ratio, controls }:
                         )}
                         <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/20">
                             <span className="flex size-14 scale-90 items-center justify-center rounded-full bg-white/90 text-black opacity-0 shadow-xl transition group-hover:scale-100 group-hover:opacity-100">
-                                <Play className="size-6 translate-x-0.5 fill-current" />
+                                {playable ? <Play className="size-6 translate-x-0.5 fill-current" /> : <Info className="size-6" />}
                             </span>
                         </span>
                         {resumable && (
@@ -329,8 +330,8 @@ function HeroSlide({ video, position, label, selected, first, ratio, controls }:
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-3">
                         <Link href={`/watch/${video.id}`} draggable={false} className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-6 text-[15px] font-semibold text-black shadow-lg transition hover:scale-[1.03] hover:bg-white/90 active:scale-100">
-                            <Play className="size-4 fill-current" />
-                            {resumable ? 'Продолжить' : 'Смотреть'}
+                            {playable ? <Play className="size-4 fill-current" /> : <Info className="size-4" />}
+                            {playable ? (resumable ? 'Продолжить' : 'Смотреть') : 'Подробнее'}
                         </Link>
                         {video.channel && (
                             <Link href={`/channels/${video.channel.id}`} draggable={false} className="inline-flex h-11 items-center gap-2 rounded-full bg-white/15 px-5 text-[15px] font-semibold transition hover:bg-white/25">
