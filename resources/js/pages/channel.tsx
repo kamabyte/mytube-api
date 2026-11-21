@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { CloudDownload, Ellipsis, Hand, ListVideo, Play, Trash2, Video as VideoIcon } from 'lucide-react';
+import { CloudDownload, Ellipsis, ExternalLink, Hand, ListVideo, Pause, Play, Trash2, Video as VideoIcon } from 'lucide-react';
 import { useState } from 'react';
 import { ChannelAvatar } from '@/components/channel-avatar';
 import { DeleteDialog } from '@/components/delete-dialog';
@@ -13,6 +13,7 @@ import type { ChannelSummary, Paginated, Video, VideoSort } from '@/types';
 
 interface Props {
     channel: ChannelSummary;
+    youtubeUrl: string;
     sort: VideoSort;
     videos: Paginated<Video>;
 }
@@ -27,9 +28,13 @@ function ChannelMenu({ channel }: { channel: ChannelSummary }) {
     const kind = channel.is_playlist ? 'плейлист' : 'канал';
     const available = availableCount(channel);
 
-    // reset: иначе бесконечная лента склеит обновлённую первую страницу с уже загруженными.
-    const setOnDemand = (value: boolean) =>
-        router.patch(`/channels/${channel.id}`, { download_on_demand: value }, { preserveScroll: true, reset: ['videos'] });
+    // reset запрашивает свежую ленту и заменяет ранее загруженные страницы.
+    const setMode = (mode: 'auto' | 'on-demand' | 'paused') =>
+        router.patch(
+            `/channels/${channel.id}`,
+            { download_on_demand: mode !== 'auto', sync_paused: mode === 'paused' },
+            { preserveScroll: true, only: ['channel', 'downloads'], reset: ['videos'] },
+        );
 
     return (
         <>
@@ -40,16 +45,23 @@ function ChannelMenu({ channel }: { channel: ChannelSummary }) {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64">
-                    {channel.download_on_demand ? (
-                        <DropdownMenuItem onSelect={() => setOnDemand(false)}>
+                    {channel.download_on_demand && (
+                        <DropdownMenuItem onSelect={() => setMode('auto')}>
                             <CloudDownload />
                             <span className="flex-1">Скачивать всё</span>
                             {available > 0 && <span className="text-xs text-muted-foreground">+{available} в очередь</span>}
                         </DropdownMenuItem>
-                    ) : (
-                        <DropdownMenuItem onSelect={() => setOnDemand(true)}>
+                    )}
+                    {(!channel.download_on_demand || channel.sync_paused) && (
+                        <DropdownMenuItem onSelect={() => setMode('on-demand')}>
                             <Hand />
                             Скачивать только по запросу
+                        </DropdownMenuItem>
+                    )}
+                    {!channel.sync_paused && (
+                        <DropdownMenuItem onSelect={() => setMode('paused')}>
+                            <Pause />
+                            Приостановить обновление
                         </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
@@ -78,7 +90,7 @@ function ChannelMenu({ channel }: { channel: ChannelSummary }) {
     );
 }
 
-export default function Channel({ channel, sort, videos }: Props) {
+export default function Channel({ channel, youtubeUrl, sort, videos }: Props) {
     // В ленте теперь и каталог — «Смотреть» начинает со скачанного.
     const first = videos.data.find((video) => video.download_state === 'downloaded');
     const available = availableCount(channel);
@@ -120,7 +132,12 @@ export default function Channel({ channel, sort, videos }: Props) {
                                     Плейлист
                                 </span>
                             )}
-                            {channel.download_on_demand && (
+                            {channel.sync_paused ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-background/60 px-2.5 py-0.5 text-xs font-medium backdrop-blur">
+                                    <Pause className="size-3.5" />
+                                    На паузе
+                                </span>
+                            ) : channel.download_on_demand && (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-background/60 px-2.5 py-0.5 text-xs font-medium backdrop-blur">
                                     <Hand className="size-3.5" />
                                     По запросу
@@ -144,6 +161,12 @@ export default function Channel({ channel, sort, videos }: Props) {
                             Смотреть
                         </Link>
                     )}
+                    <Button asChild variant="secondary" className="h-11 rounded-full bg-background/60 backdrop-blur">
+                        <a href={youtubeUrl} target="_blank" rel="noreferrer">
+                            <ExternalLink />
+                            YouTube
+                        </a>
+                    </Button>
                     <ChannelMenu channel={channel} />
                     </div>
                 </div>
@@ -155,7 +178,9 @@ export default function Channel({ channel, sort, videos }: Props) {
 
             {videos.data.length === 0 ? (
                 <EmptyState icon={VideoIcon} title="Видео пока нет">
-                    {channel.download_on_demand
+                    {channel.sync_paused
+                        ? 'Обновление каталога приостановлено. Изменить режим можно в меню канала.'
+                        : channel.download_on_demand
                         ? 'Список видео обновляется раз в минуту. Скачивается только то, что вы попросите.'
                         : 'Список видео обновляется раз в минуту, потом воркер скачает их по очереди.'}
                 </EmptyState>

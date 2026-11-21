@@ -65,6 +65,12 @@ class ParseYoutubeVideos extends Command
         foreach ($channels as $channel) {
             $this->writeInfo("Проверка канала: $channel->name");
 
+            if ($channel->sync_paused) {
+                $this->logVerbose('Обновление канала приостановлено');
+
+                continue;
+            }
+
             try {
                 if ($parsePopular && ! $channel->parse_popular) {
                     $this->writeInfo('Парсинг популярных видео отключен для канала');

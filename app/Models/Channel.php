@@ -24,6 +24,7 @@ class Channel extends Model
         'parse_latest' => 'boolean',
         'is_playlist' => 'boolean',
         'download_on_demand' => 'boolean',
+        'sync_paused' => 'boolean',
     ];
 
     public function getThumbnailAttribute(?string $value): ?string

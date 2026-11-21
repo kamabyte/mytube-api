@@ -154,6 +154,46 @@ it('switches a channel between on-demand and downloading everything', function (
     $this->patch("/channels/{$channel->id}", [])->assertSessionHasErrors('download_on_demand');
 });
 
+it('pauses channel imports and automatic downloads while keeping the library and manual requests', function (): void {
+    $channel = onDemandChannel('paused', onDemand: false, attributes: ['parse_popular' => true]);
+    $downloaded = catalogVideo($channel, 'paused-downloaded', ['is_downloaded' => true]);
+    $automatic = catalogVideo($channel, 'paused-automatic');
+    $manual = catalogVideo($channel, 'paused-manual', ['download_requested_at' => now()]);
+    $channel->upcomingVideos()->create(['external_id' => 'paused-premiere', 'check_after' => now()->subMinute()]);
+    $this->instance(YouTube::class, Mockery::mock(YouTube::class));
+
+    $this->patch("/channels/{$channel->id}", ['download_on_demand' => false, 'sync_paused' => true])
+        ->assertRedirect();
+
+    $this->artisan('youtube:parse-videos', ['--channel' => $channel->id, '--verbose' => true])
+        ->expectsOutputToContain('Обновление канала приостановлено')
+        ->assertSuccessful();
+    $this->artisan('youtube:parse-videos', ['--channel' => $channel->id, '--popular' => true, '--verbose' => true])
+        ->expectsOutputToContain('Обновление канала приостановлено')
+        ->assertSuccessful();
+    Http::assertNothingSent();
+
+    expect($channel->fresh()->sync_paused)->toBeTrue()
+        ->and($channel->fresh()->last_synced_at)->toBeNull()
+        ->and($channel->upcomingVideos()->count())->toBe(1)
+        ->and(Video::catalog()->count())->toBe(3)
+        ->and($downloaded->fresh()->is_downloaded)->toBeTrue()
+        ->and(Video::catalog()->awaitingDownload()->pluck('videos.id')->all())->toBe([$manual->id]);
+
+    $this->get("/channels/{$channel->id}")
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('youtubeUrl', 'https://www.youtube.com/channel/UC-paused')
+            ->where('channel.sync_paused', true));
+
+    $this->patch("/channels/{$channel->id}", ['download_on_demand' => true, 'sync_paused' => false])
+        ->assertRedirect();
+
+    expect($channel->fresh()->sync_paused)->toBeFalse()
+        ->and($channel->fresh()->parse_latest)->toBeTrue()
+        ->and($channel->fresh()->parse_popular)->toBeTrue()
+        ->and(Video::catalog()->awaitingDownload()->whereKey($automatic->id)->exists())->toBeFalse();
+});
+
 it('adds an on-demand channel from the web', function (): void {
     $channels = Mockery::mock(ChannelsResource::class);
     $channels->shouldReceive('listChannels')->andReturn(new ChannelListResponse(['items' => [[

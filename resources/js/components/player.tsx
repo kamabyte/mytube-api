@@ -2,6 +2,7 @@ import { router } from '@inertiajs/react';
 import {
     Airplay,
     ClosedCaption,
+    ExternalLink,
     FastForward,
     LoaderCircle,
     Maximize,
@@ -751,13 +752,29 @@ export function Player({
             {fullscreen && (
                 <div
                     className={cn(
-                        'pointer-events-none absolute inset-x-0 top-0 bg-linear-to-b from-black/80 to-transparent px-6 pt-5 pb-16 text-lg font-semibold text-white transition-opacity duration-200',
+                        'pointer-events-none absolute inset-x-0 top-0 truncate bg-linear-to-b from-black/80 to-transparent pt-5 pr-44 pb-16 pl-6 text-lg font-semibold text-white transition-opacity duration-200',
                         showControls ? 'opacity-100' : 'opacity-0',
                     )}
                 >
                     {video.name}
                 </div>
             )}
+
+            <a
+                href={`https://www.youtube.com/watch?v=${encodeURIComponent(video.external_id)}`}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Открыть видео на YouTube"
+                className={cn(
+                    'absolute top-3 right-3 z-10 inline-flex cursor-pointer items-center gap-2 rounded-full bg-black/65 px-3 py-2 text-xs font-semibold text-white backdrop-blur-md transition-opacity hover:bg-black/85 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-white @md:right-4 @md:text-sm',
+                    !showControls && !blocked && !failed && 'pointer-events-none opacity-0',
+                )}
+                onPointerEnter={(event) => event.pointerType === 'mouse' && setOverControls(true)}
+                onPointerLeave={() => setOverControls(false)}
+            >
+                <ExternalLink className="size-3.5" />
+                На YouTube
+            </a>
 
             {/* Панель управления. */}
             <div
@@ -859,7 +876,7 @@ export function Player({
             )}
 
             {resumedAt !== null && (
-                <div className="animate-fade-in absolute top-3 left-3 z-10 flex items-center gap-1 rounded-full bg-black/70 py-1 pr-1 pl-3 text-[13px] text-white backdrop-blur-md">
+                <div className="animate-fade-in absolute top-12 left-3 z-10 flex items-center gap-1 rounded-full bg-black/70 py-1 pr-1 pl-3 text-[13px] text-white backdrop-blur-md @sm:top-3">
                     Продолжено с {formatDuration(resumedAt)}
                     <button
                         onClick={() => {

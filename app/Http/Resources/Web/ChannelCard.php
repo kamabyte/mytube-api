@@ -26,6 +26,7 @@ class ChannelCard extends JsonResource
             'thumbnail' => MediaUrl::public($this->getRawOriginal('thumbnail')),
             'is_playlist' => (bool) $this->is_playlist,
             'download_on_demand' => (bool) $this->download_on_demand,
+            'sync_paused' => $this->whenHas('sync_paused'),
             'videos_count' => $this->whenCounted('videos'),
             'queued_count' => $this->whenCounted('queued'),
             'catalog_count' => $this->whenCounted('catalog'),

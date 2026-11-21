@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\StoreChannelRequest;
+use App\Http\Requests\Web\UpdateChannelRequest;
 use App\Http\Resources\Web\ChannelCard;
 use App\Http\Resources\Web\VideoCard;
 use App\Models\Channel;
@@ -69,9 +70,14 @@ class ChannelController extends Controller
         $videos = VideoSort::apply($catalog, $sort)
             ->paginate(self::PER_PAGE)
             ->withQueryString();
+        $externalId = rawurlencode($channel->external_id);
+        $youtubeUrl = $channel->is_playlist
+            ? "https://www.youtube.com/playlist?list={$externalId}"
+            : "https://www.youtube.com/channel/{$externalId}";
 
         return Inertia::render('channel', [
             'channel' => (new ChannelCard($channel))->resolve(),
+            'youtubeUrl' => $youtubeUrl,
             'sort' => $sort,
             'videos' => Inertia::scroll(VideoCard::collection($videos)),
         ]);
@@ -131,17 +137,16 @@ class ChannelController extends Controller
         return to_route('channels.show', $channel);
     }
 
-    /**
-     * Режим скачивания: всё подряд или только по запросу. Скачанное остаётся
-     * как есть; переключение на «всё» ставит в очередь весь каталог канала.
-     */
-    public function update(Request $request, Channel $channel): RedirectResponse
+    public function update(UpdateChannelRequest $request, Channel $channel): RedirectResponse
     {
-        $validated = $request->validate(['download_on_demand' => ['required', 'boolean']]);
+        $channel->update([
+            'download_on_demand' => $request->downloadOnDemand(),
+            'sync_paused' => $request->syncPaused(),
+        ]);
 
-        $channel->update($validated);
-
-        if ($channel->download_on_demand) {
+        if ($channel->sync_paused) {
+            Toast::success("«{$channel->name}» на паузе", 'Обновление каталога и автоматическое скачивание приостановлены.');
+        } elseif ($channel->download_on_demand) {
             Toast::success("«{$channel->name}» — только по запросу", 'Скачанное остаётся, новые видео попадут в каталог.');
         } else {
             $queued = $channel->videos()->withoutGlobalScopes()->awaitingDownload()->count();

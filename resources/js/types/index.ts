@@ -5,6 +5,7 @@ export interface ChannelSummary {
     is_playlist: boolean;
     /** Каталог без автоскачивания: видео скачиваются, только когда их попросят. */
     download_on_demand: boolean;
+    sync_paused?: boolean;
     videos_count?: number;
     queued_count?: number;
     /** Скачанные и нет, без удалённых и недоступных. */

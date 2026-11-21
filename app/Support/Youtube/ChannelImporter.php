@@ -92,7 +92,7 @@ class ChannelImporter
         }
 
         // null — не трогать: повторное добавление не меняет режим скачивания.
-        if ($downloadOnDemand !== null) {
+        if ($downloadOnDemand !== null && ! $existingChannel?->sync_paused) {
             $attributes['download_on_demand'] = $downloadOnDemand;
         }
 
@@ -153,7 +153,7 @@ class ChannelImporter
             'parse_popular' => $parsePopular,
         ];
 
-        if ($downloadOnDemand !== null) {
+        if ($downloadOnDemand !== null && ! $existingPlaylist?->sync_paused) {
             $attributes['download_on_demand'] = $downloadOnDemand;
         }
 
