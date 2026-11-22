@@ -106,6 +106,30 @@ it('counts downloaded and catalog videos for channel cards', function (): void {
             ->where('channel.latest_published_at', fn ($date) => now()->subDay()->isSameDay($date)));
 });
 
+it('provides YouTube links and refreshed modes in the channel cards', function (): void {
+    $channel = webChannel('card', ['name' => 'A Channel']);
+    webChannel('playlist-card', [
+        'name' => 'B Playlist',
+        'is_playlist' => true,
+        'external_id' => 'PL-card',
+    ]);
+
+    $this->get('/channels')
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('channels')
+            ->where('channels.0.youtube_url', 'https://www.youtube.com/channel/UC-card')
+            ->where('channels.1.youtube_url', 'https://www.youtube.com/playlist?list=PL-card'));
+
+    $this->from('/channels')
+        ->patch("/channels/{$channel->id}", ['download_on_demand' => true, 'sync_paused' => true])
+        ->assertRedirect('/channels');
+
+    $this->get('/channels')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('channels.0.sync_paused', true)
+            ->where('channels.0.download_on_demand', true));
+});
+
 it('serves thumbnails and the stream by host-relative urls', function (): void {
     $video = webVideo(webChannel('urls'), 'urls');
 

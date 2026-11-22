@@ -46,7 +46,10 @@ class ChannelController extends Controller
             ->get();
 
         return Inertia::render('channels', [
-            'channels' => ChannelCard::collection($channels)->resolve(),
+            'channels' => $channels->map(fn (Channel $channel) => [
+                ...(new ChannelCard($channel))->resolve(),
+                'youtube_url' => $this->youtubeUrl($channel),
+            ]),
         ]);
     }
 
@@ -70,14 +73,10 @@ class ChannelController extends Controller
         $videos = VideoSort::apply($catalog, $sort)
             ->paginate(self::PER_PAGE)
             ->withQueryString();
-        $externalId = rawurlencode($channel->external_id);
-        $youtubeUrl = $channel->is_playlist
-            ? "https://www.youtube.com/playlist?list={$externalId}"
-            : "https://www.youtube.com/channel/{$externalId}";
 
         return Inertia::render('channel', [
             'channel' => (new ChannelCard($channel))->resolve(),
-            'youtubeUrl' => $youtubeUrl,
+            'youtubeUrl' => $this->youtubeUrl($channel),
             'sort' => $sort,
             'videos' => Inertia::scroll(VideoCard::collection($videos)),
         ]);
@@ -167,9 +166,10 @@ class ChannelController extends Controller
         // остались бы лежать сиротами. Консольная команда это умеет с
         // предупреждением, из веба — не даём.
         if (! $summary['media_available']) {
-            Toast::error('Медиадиск недоступен — канал не удалён');
+            $message = 'Медиадиск недоступен — канал не удалён';
+            Toast::error($message);
 
-            return back();
+            return back()->withErrors(['delete' => $message]);
         }
 
         $removal = $cleaner->removeChannel($channel, $summary);
@@ -201,6 +201,15 @@ class ChannelController extends Controller
         return ['videos as queued_count' => fn ($query) => $query
             ->withoutGlobalScopes()
             ->awaitingDownload()];
+    }
+
+    private function youtubeUrl(Channel $channel): string
+    {
+        $externalId = rawurlencode($channel->external_id);
+
+        return $channel->is_playlist
+            ? "https://www.youtube.com/playlist?list={$externalId}"
+            : "https://www.youtube.com/channel/{$externalId}";
     }
 
     private function importFailedMessage(ImportFailed $e, bool $isPlaylist): string

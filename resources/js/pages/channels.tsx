@@ -2,11 +2,12 @@ import { Head, Link } from '@inertiajs/react';
 import { Hand, ListVideo, Pause, Tv } from 'lucide-react';
 import { AddChannelDialog } from '@/components/add-channel-dialog';
 import { ChannelAvatar } from '@/components/channel-avatar';
+import { ChannelMenu } from '@/components/channel-menu';
 import { EmptyState, PageTitle } from '@/components/empty-state';
 import { channelVideoCounts, formatBytes, formatRelative } from '@/lib/format';
 import type { ChannelSummary } from '@/types';
 
-export default function Channels({ channels }: { channels: ChannelSummary[] }) {
+export default function Channels({ channels }: { channels: (ChannelSummary & { youtube_url: string })[] }) {
     return (
         <>
             <Head title="Каналы" />
@@ -22,50 +23,57 @@ export default function Channels({ channels }: { channels: ChannelSummary[] }) {
             ) : (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4 2xl:grid-cols-6">
                     {channels.map((channel) => (
-                        <Link
-                            key={channel.id}
-                            href={`/channels/${channel.id}`}
-                            className="group animate-fade-in relative flex flex-col items-center gap-3 overflow-hidden rounded-2xl border border-border/60 bg-card px-4 pt-7 pb-5 text-center transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none dark:hover:shadow-black/40"
-                        >
-                            {channel.thumbnail && (
-                                <img
-                                    src={channel.thumbnail}
-                                    alt=""
-                                    aria-hidden
-                                    className="pointer-events-none absolute inset-x-0 top-0 h-24 w-full scale-150 object-cover opacity-25 blur-2xl dark:opacity-30"
-                                />
-                            )}
-                            <ChannelAvatar channel={channel} className="relative size-20 shadow-lg transition-transform duration-300 group-hover:scale-105 md:size-24" />
-                            <div className="relative min-w-0">
-                                <h2 className="line-clamp-2 font-semibold leading-snug">{channel.name}</h2>
-                                <p className="mt-1 text-[13px] text-muted-foreground">
-                                    {channelVideoCounts(channel)}
-                                    {channel.total_size_bytes ? ` · ${formatBytes(channel.total_size_bytes)}` : ''}
-                                </p>
-                                {!!channel.queued_count && (
-                                    <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-medium text-brand">
-                                        в очереди {channel.queued_count}
-                                    </p>
+                        <article key={channel.id} className="animate-fade-in relative min-w-0 transition hover:-translate-y-0.5">
+                            <Link
+                                href={`/channels/${channel.id}`}
+                                aria-label={channel.name}
+                                className="group relative flex h-full flex-col items-center gap-3 overflow-hidden rounded-2xl border border-border/60 bg-card px-3 pt-10 pb-5 text-center transition-shadow hover:shadow-xl hover:shadow-black/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:px-4 dark:hover:shadow-black/40"
+                            >
+                                {channel.thumbnail && (
+                                    <img
+                                        src={channel.thumbnail}
+                                        alt=""
+                                        aria-hidden
+                                        className="pointer-events-none absolute inset-x-0 top-0 h-24 w-full scale-150 object-cover opacity-25 blur-2xl dark:opacity-30"
+                                    />
                                 )}
-                                {channel.latest_published_at && (
-                                    <p className="mt-0.5 text-xs text-muted-foreground/80">
-                                        последнее {formatRelative(channel.latest_published_at)}
+                                <ChannelAvatar channel={channel} className="relative size-20 shadow-lg transition-transform duration-300 group-hover:scale-105 md:size-24" />
+                                <div className="relative min-w-0">
+                                    <h2 className="line-clamp-2 font-semibold leading-snug [overflow-wrap:anywhere]">{channel.name}</h2>
+                                    <p className="mt-1 text-[13px] text-muted-foreground">
+                                        {channelVideoCounts(channel)}
+                                        {channel.total_size_bytes ? ` · ${formatBytes(channel.total_size_bytes)}` : ''}
                                     </p>
-                                )}
+                                    {!!channel.queued_count && (
+                                        <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-medium text-brand">
+                                            в очереди {channel.queued_count}
+                                        </p>
+                                    )}
+                                    {channel.latest_published_at && (
+                                        <p className="mt-0.5 text-xs text-muted-foreground/80">
+                                            последнее {formatRelative(channel.latest_published_at)}
+                                        </p>
+                                    )}
+                                    <div className="mt-2 flex flex-wrap justify-center gap-1 empty:hidden">
+                                        {channel.download_on_demand && (
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+                                                {channel.sync_paused ? <Pause className="size-3" /> : <Hand className="size-3" />}
+                                                {channel.sync_paused ? 'На паузе' : 'По запросу'}
+                                            </span>
+                                        )}
+                                        {channel.is_playlist && (
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+                                                <ListVideo className="size-3" />
+                                                Плейлист
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </Link>
+                            <div className="absolute top-1 right-1">
+                                <ChannelMenu channel={channel} cardYoutubeUrl={channel.youtube_url} />
                             </div>
-                            {channel.download_on_demand && (
-                                <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
-                                    {channel.sync_paused ? <Pause className="size-3" /> : <Hand className="size-3" />}
-                                    {channel.sync_paused ? 'На паузе' : 'По запросу'}
-                                </span>
-                            )}
-                            {channel.is_playlist && (
-                                <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
-                                    <ListVideo className="size-3" />
-                                    Плейлист
-                                </span>
-                            )}
-                        </Link>
+                        </article>
                     ))}
                 </div>
             )}

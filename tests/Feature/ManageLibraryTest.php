@@ -155,7 +155,8 @@ it('refuses to remove a channel when the media disk is not mounted', function ()
 
     $this->from("/channels/{$channel->id}")
         ->delete("/channels/{$channel->id}", ['pin' => '2468'])
-        ->assertRedirect("/channels/{$channel->id}");
+        ->assertRedirect("/channels/{$channel->id}")
+        ->assertSessionHasErrors(['delete' => 'Медиадиск недоступен — канал не удалён']);
 
     expect(Channel::query()->whereKey($channel->id)->exists())->toBeTrue();
 });

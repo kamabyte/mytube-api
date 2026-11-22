@@ -1,10 +1,8 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { CloudDownload, Ellipsis, ExternalLink, Hand, ListVideo, Pause, Play, Trash2, Video as VideoIcon } from 'lucide-react';
-import { useState } from 'react';
+import { Head, Link } from '@inertiajs/react';
+import { ExternalLink, Hand, ListVideo, Pause, Play, Video as VideoIcon } from 'lucide-react';
 import { ChannelAvatar } from '@/components/channel-avatar';
-import { DeleteDialog } from '@/components/delete-dialog';
+import { availableCount, ChannelMenu } from '@/components/channel-menu';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { EmptyState } from '@/components/empty-state';
 import { SortControl } from '@/components/sort-control';
 import { InfiniteVideoGrid } from '@/components/video-grid';
@@ -16,78 +14,6 @@ interface Props {
     youtubeUrl: string;
     sort: VideoSort;
     videos: Paginated<Video>;
-}
-
-/** Сколько видео канала можно попросить: каталог минус скачанное и очередь. */
-function availableCount(channel: ChannelSummary): number {
-    return Math.max((channel.catalog_count ?? 0) - (channel.videos_count ?? 0) - (channel.queued_count ?? 0), 0);
-}
-
-function ChannelMenu({ channel }: { channel: ChannelSummary }) {
-    const [confirming, setConfirming] = useState(false);
-    const kind = channel.is_playlist ? 'плейлист' : 'канал';
-    const available = availableCount(channel);
-
-    // reset запрашивает свежую ленту и заменяет ранее загруженные страницы.
-    const setMode = (mode: 'auto' | 'on-demand' | 'paused') =>
-        router.patch(
-            `/channels/${channel.id}`,
-            { download_on_demand: mode !== 'auto', sync_paused: mode === 'paused' },
-            { preserveScroll: true, only: ['channel', 'downloads'], reset: ['videos'] },
-        );
-
-    return (
-        <>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" size="icon" className="size-11 rounded-full bg-background/60 backdrop-blur" aria-label="Ещё">
-                        <Ellipsis className="size-5" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64">
-                    {channel.download_on_demand && (
-                        <DropdownMenuItem onSelect={() => setMode('auto')}>
-                            <CloudDownload />
-                            <span className="flex-1">Скачивать всё</span>
-                            {available > 0 && <span className="text-xs text-muted-foreground">+{available} в очередь</span>}
-                        </DropdownMenuItem>
-                    )}
-                    {(!channel.download_on_demand || channel.sync_paused) && (
-                        <DropdownMenuItem onSelect={() => setMode('on-demand')}>
-                            <Hand />
-                            Скачивать только по запросу
-                        </DropdownMenuItem>
-                    )}
-                    {!channel.sync_paused && (
-                        <DropdownMenuItem onSelect={() => setMode('paused')}>
-                            <Pause />
-                            Приостановить обновление
-                        </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem variant="destructive" onSelect={() => setConfirming(true)}>
-                        <Trash2 />
-                        Удалить {kind}
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DeleteDialog
-                open={confirming}
-                onOpenChange={setConfirming}
-                url={`/channels/${channel.id}`}
-                title={`Удалить ${kind} «${channel.name}»?`}
-            >
-                <p>
-                    С диска будут удалены все скачанные видео
-                    {channel.videos_count ? ` (${plural(channel.videos_count, ['видео', 'видео', 'видео'])}` : ''}
-                    {channel.total_size_bytes ? `, ${formatBytes(channel.total_size_bytes)}` : ''}
-                    {channel.videos_count ? ')' : ''}, а очередь загрузки — очищена.
-                </p>
-                <p>Отменить это нельзя. Добавить {kind} снова можно, но видео придётся скачивать заново.</p>
-            </DeleteDialog>
-        </>
-    );
 }
 
 export default function Channel({ channel, youtubeUrl, sort, videos }: Props) {
