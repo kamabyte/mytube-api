@@ -16,7 +16,7 @@ import type { DownloadState, Video } from '@/types';
  * сбросила бы бесконечную ленту, а саму карточку меню обновляет сразу.
  */
 const RELOAD_ONLY = ['deletePin'];
-const HOME_AFTER_DELETE = ['deletePin', 'featured', 'latest', 'shelves'];
+const HOME_AFTER_DELETE = ['deletePin', 'latest', 'shelves'];
 
 /** Меню «⋮» карточки: скачать, отменить, убрать файл, удалить видео. */
 function VideoActions({ video, onChange, onMarkWatched }: {

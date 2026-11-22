@@ -36,7 +36,7 @@ function webVideo(Channel $channel, string $slug, array $attributes = []): Video
     ], $attributes));
 }
 
-it('renders the home page with featured videos, the catalog and channel shelves', function (): void {
+it('renders the home page with the latest catalog videos and channel shelves', function (): void {
     $channel = webChannel('home');
     webVideo($channel, 'old', ['published_at' => now()->subDays(3), 'downloaded_at' => now()]);
     webVideo($channel, 'new', ['published_at' => now()->subDay(), 'downloaded_at' => now()->subHours(12)]);
@@ -50,12 +50,7 @@ it('renders the home page with featured videos, the catalog and channel shelves'
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('home')
-            ->has('featured', 4)
-            ->where('featured.0.name', 'Video catalog')
-            ->where('featured.0.download_state', 'available')
-            ->where('featured.1.name', 'Video new')
-            ->where('featured.2.name', 'Video old')
-            ->where('featured.3.download_state', 'queued')
+            ->missing('featured')
             ->has('latest', 4)
             // По дате публикации, вперемешку: каталог (2 ч назад), new, old, очередь.
             ->where('latest.0.name', 'Video catalog')

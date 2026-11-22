@@ -13,8 +13,6 @@ use Inertia\Response;
 
 class HomeController extends Controller
 {
-    private const int FEATURED_SIZE = 6;
-
     private const int SHELF_SIZE = 16;
 
     public function __invoke(): Response
@@ -26,7 +24,6 @@ class HomeController extends Controller
             ->orderByDesc('id')
             ->limit(self::SHELF_SIZE)
             ->get();
-        $featured = $latest->take(self::FEATURED_SIZE);
 
         // Полка на канал, каналы — по свежести последнего видео каталога.
         $shelves = Channel::query()
@@ -44,7 +41,6 @@ class HomeController extends Controller
             ->get();
 
         return Inertia::render('home', [
-            'featured' => VideoCard::collection($featured)->resolve(),
             'latest' => VideoCard::collection($latest)->resolve(),
             'shelves' => ChannelCard::collection($shelves)->resolve(),
         ]);
