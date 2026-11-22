@@ -4,6 +4,8 @@ import {
     Clapperboard,
     House,
     type LucideIcon,
+    PanelLeftClose,
+    PanelLeftOpen,
     Search,
     Tv,
 } from "lucide-react";
@@ -22,6 +24,7 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useStoredToggle } from "@/hooks/use-stored-toggle";
 import { useChannelViews } from "@/lib/channel-views";
 import { cn } from "@/lib/utils";
 import type { SharedProps } from "@/types";
@@ -50,7 +53,7 @@ function isActive(item: NavItem, url: string) {
     return item.match ? item.match.test(url) : url.startsWith(item.href);
 }
 
-function Sidebar() {
+function Sidebar({ compact }: { compact: boolean }) {
     const { url, props } = usePage<SharedProps>();
     const views = useChannelViews();
     const channels = [...(props.sidebarChannels ?? [])].sort(
@@ -58,15 +61,15 @@ function Sidebar() {
     );
 
     return (
-        <aside className="fixed inset-y-0 left-[env(safe-area-inset-left)] z-30 hidden w-[76px] flex-col border-r border-border/60 bg-background pt-[env(safe-area-inset-top)] md:flex lg:w-64">
-            <div className="flex h-16 shrink-0 items-center justify-center px-5 lg:justify-start">
+        <aside id="app-sidebar" className="fixed inset-y-0 left-[env(safe-area-inset-left)] z-30 hidden w-(--sidebar-width) flex-col border-r border-border/60 bg-background pt-[env(safe-area-inset-top)] md:flex">
+            <div className={cn("flex h-16 shrink-0 items-center justify-center px-5", !compact && "lg:justify-start")}>
                 <Link
                     href="/"
                     className="rounded-lg focus-visible:ring-2 focus-visible:ring-ring"
                     aria-label="MyTube — главная"
                 >
-                    <LogoMark className="lg:hidden" />
-                    <Logo className="hidden lg:inline-flex" />
+                    <LogoMark className={cn(!compact && "lg:hidden")} />
+                    {!compact && <Logo className="hidden lg:inline-flex" />}
                 </Link>
             </div>
 
@@ -81,9 +84,11 @@ function Sidebar() {
                                 <Link
                                     href={item.href}
                                     prefetch
+                                    aria-label={item.label}
                                     aria-current={active ? "page" : undefined}
                                     className={cn(
-                                        "group flex h-11 items-center justify-center gap-3.5 rounded-xl px-3 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground lg:justify-start",
+                                        "group flex h-11 items-center justify-center gap-3.5 rounded-xl px-3 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground",
+                                        !compact && "lg:justify-start",
                                         active && "bg-accent text-foreground",
                                     )}
                                 >
@@ -94,12 +99,10 @@ function Sidebar() {
                                         )}
                                         strokeWidth={active ? 2.25 : 1.9}
                                     />
-                                    <span className="hidden lg:inline">
-                                        {item.label}
-                                    </span>
+                                    {!compact && <span className="hidden lg:inline">{item.label}</span>}
                                 </Link>
                             </TooltipTrigger>
-                            <TooltipContent side="right" className="lg:hidden">
+                            <TooltipContent side="right" className={cn(!compact && "lg:hidden")}>
                                 {item.label}
                             </TooltipContent>
                         </Tooltip>
@@ -108,42 +111,48 @@ function Sidebar() {
             </nav>
 
             {channels.length > 0 && (
-                <div className="mt-6 hidden min-h-0 flex-1 flex-col lg:flex">
-                    <div className="px-6 pb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                        Подписки
-                    </div>
+                <nav aria-label="Подписки" className="mt-6 hidden min-h-0 flex-1 flex-col lg:flex">
+                    {!compact && (
+                        <div className="px-6 pb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                            Подписки
+                        </div>
+                    )}
                     <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto px-3 pb-6">
                         {channels.map((channel) => {
                             const href = `/channels/${channel.id}`;
                             const active = url.split("?")[0] === href;
 
                             return (
-                                <Link
-                                    key={channel.id}
-                                    href={href}
-                                    className={cn(
-                                        "flex h-10 items-center gap-3 rounded-xl px-3 text-sm text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground",
-                                        active && "bg-accent text-foreground",
-                                    )}
-                                >
-                                    <ChannelAvatar
-                                        channel={channel}
-                                        className="size-6"
-                                    />
-                                    <span className="truncate">
-                                        {channel.name}
-                                    </span>
-                                </Link>
+                                <Tooltip key={channel.id}>
+                                    <TooltipTrigger asChild>
+                                        <Link
+                                            href={href}
+                                            aria-label={channel.name}
+                                            aria-current={active ? "page" : undefined}
+                                            className={cn(
+                                                "flex h-10 items-center gap-3 rounded-xl px-3 text-sm text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground",
+                                                compact && "justify-center",
+                                                active && "bg-accent text-foreground",
+                                            )}
+                                        >
+                                            <ChannelAvatar channel={channel} className="size-6 shrink-0" />
+                                            {!compact && <span className="truncate">{channel.name}</span>}
+                                        </Link>
+                                    </TooltipTrigger>
+                                    {compact && <TooltipContent side="right">{channel.name}</TooltipContent>}
+                                </Tooltip>
                             );
                         })}
                     </div>
-                </div>
+                </nav>
             )}
         </aside>
     );
 }
 
-function Header() {
+function Header({ sidebarCompact, onToggleSidebar }: { sidebarCompact: boolean; onToggleSidebar: () => void }) {
+    const sidebarLabel = sidebarCompact ? "Развернуть сайдбар" : "Свернуть сайдбар";
+
     return (
         <header className="sticky top-0 z-20 border-b border-border/60 bg-chrome pt-[env(safe-area-inset-top)] backdrop-blur-xl backdrop-saturate-150">
             <div className="flex h-14 items-center gap-3 px-4 md:h-16 md:px-6 lg:px-8">
@@ -154,6 +163,19 @@ function Header() {
                 >
                     <Logo />
                 </Link>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="hidden rounded-full text-muted-foreground lg:inline-flex"
+                    aria-controls="app-sidebar"
+                    aria-expanded={!sidebarCompact}
+                    aria-label={sidebarLabel}
+                    title={sidebarLabel}
+                    onClick={onToggleSidebar}
+                >
+                    {sidebarCompact ? <PanelLeftOpen aria-hidden /> : <PanelLeftClose aria-hidden />}
+                </Button>
                 <SearchBox className="hidden max-w-xl md:block" />
                 <div className="ml-auto flex items-center sm:gap-1">
                     <Button
@@ -213,11 +235,16 @@ function TabBar() {
 }
 
 export default function AppLayout({ children }: { children: ReactNode }) {
+    const [sidebarCompact, setSidebarCompact] = useStoredToggle("mytube:sidebar-compact", false);
+
     return (
-        <div className="min-h-dvh pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
-            <Sidebar />
-            <div className="md:pl-[76px] lg:pl-64">
-                <Header />
+        <div className={cn(
+            "min-h-dvh pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] md:[--sidebar-width:76px]",
+            !sidebarCompact && "lg:[--sidebar-width:16rem]",
+        )}>
+            <Sidebar compact={sidebarCompact} />
+            <div className="md:pl-(--sidebar-width)">
+                <Header sidebarCompact={sidebarCompact} onToggleSidebar={() => setSidebarCompact(!sidebarCompact)} />
                 <NetworkStatus />
                 <PullToRefresh />
                 <main data-pull-to-refresh className="px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))] md:px-6 md:pt-6 md:pb-[max(3rem,env(safe-area-inset-bottom))] lg:px-8">
