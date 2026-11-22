@@ -12,12 +12,14 @@ export function Shelf({
     title,
     href,
     icon,
+    actions,
     children,
     itemClassName = 'w-[72vw] sm:w-[300px] lg:w-[320px]',
 }: {
     title: ReactNode;
     href?: string;
     icon?: ReactNode;
+    actions?: ReactNode;
     children: ReactElement[];
     itemClassName?: string;
 }) {
@@ -74,7 +76,7 @@ export function Shelf({
         >
             <div className="mb-3 flex items-center gap-3 px-4 md:px-6 lg:px-8">
                 {icon}
-                <h2 className="font-display min-w-0 truncate text-xl font-semibold md:text-[22px]">
+                <h2 className={cn('font-display min-w-0 text-xl font-semibold md:text-[22px]', actions ? 'leading-tight' : 'truncate')}>
                     {href ? (
                         <Link href={href} className="inline-flex items-center gap-1 hover:opacity-80">
                             {title}
@@ -84,13 +86,16 @@ export function Shelf({
                         title
                     )}
                 </h2>
-                <div className="ml-auto hidden gap-1.5 md:flex">
-                    <Button variant="secondary" size="icon" className="size-8 rounded-full" disabled={edges.start} onClick={() => scrollBy(-1)} aria-label="Назад">
-                        <ChevronLeft className="size-4" />
-                    </Button>
-                    <Button variant="secondary" size="icon" className="size-8 rounded-full" disabled={edges.end} onClick={() => scrollBy(1)} aria-label="Вперёд">
-                        <ChevronRight className="size-4" />
-                    </Button>
+                <div className="ml-auto flex shrink-0 items-center gap-2">
+                    {actions}
+                    <div className="hidden gap-1.5 md:flex">
+                        <Button variant="secondary" size="icon" className="size-8 rounded-full" disabled={edges.start} onClick={() => scrollBy(-1)} aria-label="Назад">
+                            <ChevronLeft className="size-4" />
+                        </Button>
+                        <Button variant="secondary" size="icon" className="size-8 rounded-full" disabled={edges.end} onClick={() => scrollBy(1)} aria-label="Вперёд">
+                            <ChevronRight className="size-4" />
+                        </Button>
+                    </div>
                 </div>
             </div>
             <div

@@ -160,6 +160,31 @@ function isUnfinished(entry: ProgressEntry): boolean {
     return ratio > 0.02 && ratio < 1;
 }
 
+export function markAllWatched() {
+    const store = read();
+    const unfinished = Object.entries(store).filter(([, entry]) => isUnfinished(entry));
+    if (unfinished.length === 0) return;
+
+    const markedAt = Date.now();
+    const next = { ...store };
+    for (const [id, entry] of unfinished) {
+        next[id] = { ...entry, position: entry.duration, updatedAt: markedAt, markedWatched: true };
+    }
+    write(next);
+
+    return () => {
+        const restored = { ...read() };
+        for (const [id, previous] of unfinished) {
+            const entry = restored[id];
+            // Keep any newer playback or deletion, including changes from another tab.
+            if (entry?.updatedAt === markedAt && entry.markedWatched) {
+                restored[id] = previous;
+            }
+        }
+        write(restored);
+    };
+}
+
 /**
  * Сверяет недосмотренные видео с сервером: удалённые (через веб в другом
  * браузере, командой, вместе с каналом) выкидывает, остальным обновляет
