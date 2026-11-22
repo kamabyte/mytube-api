@@ -57,7 +57,7 @@ export function SettingsMenu({
     return (
         <div
             ref={ref}
-            className="animate-fade-in absolute right-3 bottom-20 z-20 w-64 max-w-[calc(100%-1.5rem)] overflow-hidden rounded-2xl bg-black/85 py-2 text-white shadow-xl backdrop-blur-md @md:bottom-24"
+            className="animate-fade-in absolute right-3 bottom-20 z-20 max-h-[calc(100%-5.5rem)] w-64 max-w-[calc(100%-1.5rem)] overflow-y-auto overscroll-contain @md:max-h-[calc(100%-6.5rem)] rounded-2xl bg-black/85 py-2 text-white shadow-xl backdrop-blur-md @md:bottom-24"
             onClick={(event) => event.stopPropagation()}
         >
             {page === 'main' ? (

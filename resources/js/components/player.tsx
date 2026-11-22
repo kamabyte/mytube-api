@@ -2,7 +2,6 @@ import { router } from '@inertiajs/react';
 import {
     Airplay,
     ClosedCaption,
-    ExternalLink,
     FastForward,
     LoaderCircle,
     Maximize,
@@ -252,7 +251,7 @@ export function Player({
             window.removeEventListener('pagehide', save);
             save();
         };
-    }, [video]);
+    }, [video.id]);
 
     // Громкость и скорость переживают смену видео и перезагрузку.
     useEffect(() => {
@@ -760,27 +759,11 @@ export function Player({
                 </div>
             )}
 
-            <a
-                href={`https://www.youtube.com/watch?v=${encodeURIComponent(video.external_id)}`}
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Открыть видео на YouTube"
-                className={cn(
-                    'absolute top-3 right-3 z-10 inline-flex cursor-pointer items-center gap-2 rounded-full bg-black/65 px-3 py-2 text-xs font-semibold text-white backdrop-blur-md transition-opacity hover:bg-black/85 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-white @md:right-4 @md:text-sm',
-                    !showControls && !blocked && !failed && 'pointer-events-none opacity-0',
-                )}
-                onPointerEnter={(event) => event.pointerType === 'mouse' && setOverControls(true)}
-                onPointerLeave={() => setOverControls(false)}
-            >
-                <ExternalLink className="size-3.5" />
-                На YouTube
-            </a>
-
             {/* Панель управления. */}
             <div
                 className={cn(
                     'absolute inset-x-0 bottom-0 z-10 transition-opacity duration-200',
-                    showControls && countdown === null ? 'opacity-100' : 'pointer-events-none opacity-0',
+                    showControls && countdown === null ? 'opacity-100' : 'pointer-events-none opacity-0 focus-within:pointer-events-auto focus-within:opacity-100',
                 )}
                 onPointerEnter={(event) => event.pointerType === 'mouse' && setOverControls(true)}
                 onPointerLeave={() => setOverControls(false)}
@@ -821,6 +804,17 @@ export function Player({
                                     <ClosedCaption />
                                 </ControlButton>
                             )}
+                            <ControlButton
+                                label="Открыть видео на YouTube"
+                                href={`https://www.youtube.com/watch?v=${encodeURIComponent(video.external_id)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <rect x="2" y="5" width="20" height="14" rx="4" fill="currentColor" />
+                                    <path d="M10 8.5v7l6-3.5z" fill="#18181b" />
+                                </svg>
+                            </ControlButton>
                             <ControlButton
                                 label="Настройки"
                                 data-settings-toggle
@@ -894,6 +888,9 @@ export function Player({
                 <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-black/80 p-6 text-center text-white">
                     <p className="font-semibold">Не удалось воспроизвести видео</p>
                     <p className="max-w-sm text-sm text-white/60">Файл недоступен на сервере или формат не поддерживается этим браузером.</p>
+                    <a href={`https://www.youtube.com/watch?v=${encodeURIComponent(video.external_id)}`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center rounded-full bg-white/15 px-3 text-sm font-medium hover:bg-white/25">
+                        Открыть на YouTube
+                    </a>
                 </div>
             )}
 

@@ -64,7 +64,7 @@ export function NotificationBell() {
             }}
         >
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative rounded-full" aria-label={count ? `Уведомления: ${count} новых` : 'Уведомления'}>
+                <Button variant="ghost" size="icon" className="relative size-11 rounded-full md:size-9" aria-label={count ? `Уведомления: ${count} новых` : 'Уведомления'}>
                     <Bell className="size-[18px]" />
                     {count > 0 && (
                         <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] leading-none font-bold text-white tabular-nums">
@@ -97,7 +97,7 @@ export function NotificationBell() {
                     </div>
                 </div>
 
-                <div className="max-h-[min(32rem,70vh)] overflow-y-auto p-1.5">
+                <div className="max-h-[min(32rem,70dvh)] overflow-y-auto p-1.5">
                     {items.length > 0 ? (
                         items.map((notification) => <NotificationRow key={notification.id} notification={notification} />)
                     ) : (

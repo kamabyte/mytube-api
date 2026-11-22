@@ -143,6 +143,12 @@
 
     html {
         -webkit-tap-highlight-color: transparent;
+        scroll-padding-top: calc(4rem + env(safe-area-inset-top));
+        scroll-padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
+
+        @media (pointer: coarse) {
+            overscroll-behavior-y: none;
+        }
     }
 
     body {
@@ -169,4 +175,10 @@
 
 @utility pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media (pointer: coarse) {
+    input:not([type="checkbox"], [type="radio"], [type="range"]), textarea, select {
+        font-size: max(1rem, 16px);
+    }
 }

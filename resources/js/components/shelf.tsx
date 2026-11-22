@@ -1,6 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactElement, type ReactNode, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -18,7 +18,7 @@ export function Shelf({
     title: ReactNode;
     href?: string;
     icon?: ReactNode;
-    children: ReactNode[];
+    children: ReactElement[];
     itemClassName?: string;
 }) {
     const scroller = useRef<HTMLDivElement>(null);
@@ -55,6 +55,8 @@ export function Shelf({
         observer.observe(last);
         return () => observer.disconnect();
     }, [children.length]);
+
+    if (children.length === 0) return null;
 
     const scrollBy = (direction: 1 | -1) => {
         const el = scroller.current;
@@ -95,8 +97,8 @@ export function Shelf({
                 ref={scroller}
                 className="scrollbar-none flex snap-x snap-proximity scroll-px-4 gap-4 overflow-x-auto overscroll-x-contain px-4 pb-2 md:scroll-px-6 md:px-6 lg:scroll-px-8 lg:px-8"
             >
-                {children.map((child, index) => (
-                    <div key={index} className={cn('shrink-0 snap-start', itemClassName)}>
+                {children.map((child) => (
+                    <div key={child.key} className={cn('shrink-0 snap-start', itemClassName)}>
                         {child}
                     </div>
                 ))}

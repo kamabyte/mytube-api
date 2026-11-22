@@ -7,6 +7,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
 import AppLayout from '@/layouts/app-layout';
 import { setupEcho } from '@/lib/echo';
+import { registerServiceWorker } from '@/lib/pwa';
 
 const live = setupEcho();
 
@@ -30,3 +31,4 @@ void createInertiaApp({
 });
 
 initializeTheme();
+registerServiceWorker();

@@ -230,7 +230,7 @@ export function DownloadsMenu() {
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="relative rounded-full"
+                    className="relative size-11 rounded-full md:size-9"
                     aria-label={
                         queued ? `Загрузки: ${queued} в очереди` : "Загрузки"
                     }
@@ -263,7 +263,7 @@ export function DownloadsMenu() {
                     )}
                 </div>
 
-                <div className="max-h-[min(32rem,70vh)] overflow-y-auto p-1.5">
+                <div className="max-h-[min(32rem,70dvh)] overflow-y-auto p-1.5">
                     {!data ? (
                         <p className="px-4 py-10 text-center text-sm text-muted-foreground">
                             Загрузка…

@@ -168,6 +168,7 @@ it('refuses to remove a video when the media disk is not mounted', function (): 
     $this->from("/watch/{$video->id}")
         ->delete("/videos/{$video->id}", ['pin' => '2468'])
         ->assertRedirect("/watch/{$video->id}")
+        ->assertSessionHasErrors(['delete' => 'Медиадиск недоступен — видео не удалено'])
         ->assertInertiaFlash('toast.type', 'error')
         ->assertInertiaFlash('toast.message', 'Медиадиск недоступен — видео не удалено');
 

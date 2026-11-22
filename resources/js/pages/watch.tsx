@@ -59,12 +59,12 @@ function VideoMenu({ video }: { video: VideoDetail }) {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuItem asChild>
+                    {!video.stream_url && <DropdownMenuItem asChild>
                         <a href={`https://www.youtube.com/watch?v=${video.external_id}`} target="_blank" rel="noreferrer noopener">
                             <ExternalLink />
                             Открыть на YouTube
                         </a>
-                    </DropdownMenuItem>
+                    </DropdownMenuItem>}
                     {video.stream_url && (
                         <DropdownMenuItem disabled={video.auto_download} onSelect={() => setUnloading(true)} className="items-start">
                             <FileX className="mt-0.5" />
@@ -150,7 +150,7 @@ export default function Watch({ video, channel, upNext }: Props) {
                     upNext.length > 0 && 'xl:grid-cols-[minmax(0,1fr)_400px]',
                 )}
             >
-                <div className={cn('min-w-0', theater && 'lg:-mx-8 lg:-mt-6 xl:col-span-full')}>
+                <div data-no-pull-refresh className={cn('min-w-0', theater && 'lg:-mx-8 lg:-mt-6 xl:col-span-full')}>
                     {playable ? (
                         <Player
                             video={playable}
@@ -183,11 +183,11 @@ export default function Watch({ video, channel, upNext }: Props) {
 
                             <div className="ml-auto flex gap-2">
                                 {video.stream_url && (
-                                    <Button asChild variant="secondary" className="rounded-full">
+                                    <Button asChild variant="secondary" className="min-h-11 rounded-full">
                                         <a href={video.stream_url} download={`${video.name}.mp4`}>
                                             <Download />
                                             Скачать
-                                            {video.file_size ? <span className="text-muted-foreground">{formatBytes(video.file_size)}</span> : null}
+                                            {video.file_size ? <span className="hidden text-muted-foreground min-[380px]:inline">{formatBytes(video.file_size)}</span> : null}
                                         </a>
                                     </Button>
                                 )}

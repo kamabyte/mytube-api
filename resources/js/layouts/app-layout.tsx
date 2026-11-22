@@ -10,6 +10,8 @@ import {
 import type { ReactNode } from "react";
 import { AppearanceMenu } from "@/components/appearance-menu";
 import { DownloadsMenu } from "@/components/downloads-menu";
+import { NetworkStatus } from "@/components/network-status";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 import { NotificationBell } from "@/components/notification-bell";
 import { ChannelAvatar } from "@/components/channel-avatar";
 import { Logo, LogoMark } from "@/components/logo";
@@ -56,7 +58,7 @@ function Sidebar() {
     );
 
     return (
-        <aside className="fixed inset-y-0 left-0 z-30 hidden w-[76px] flex-col border-r border-border/60 bg-background md:flex lg:w-64">
+        <aside className="fixed inset-y-0 left-[env(safe-area-inset-left)] z-30 hidden w-[76px] flex-col border-r border-border/60 bg-background pt-[env(safe-area-inset-top)] md:flex lg:w-64">
             <div className="flex h-16 shrink-0 items-center justify-center px-5 lg:justify-start">
                 <Link
                     href="/"
@@ -143,7 +145,7 @@ function Sidebar() {
 
 function Header() {
     return (
-        <header className="sticky top-0 z-20 border-b border-border/60 bg-chrome backdrop-blur-xl backdrop-saturate-150">
+        <header className="sticky top-0 z-20 border-b border-border/60 bg-chrome pt-[env(safe-area-inset-top)] backdrop-blur-xl backdrop-saturate-150">
             <div className="flex h-14 items-center gap-3 px-4 md:h-16 md:px-6 lg:px-8">
                 <Link
                     href="/"
@@ -153,12 +155,12 @@ function Header() {
                     <Logo />
                 </Link>
                 <SearchBox className="hidden max-w-xl md:block" />
-                <div className="ml-auto flex items-center gap-1">
+                <div className="ml-auto flex items-center sm:gap-1">
                     <Button
                         asChild
                         variant="ghost"
                         size="icon"
-                        className="rounded-full md:hidden"
+                        className="size-11 rounded-full md:hidden"
                     >
                         <Link href="/search" aria-label="Поиск">
                             <Search className="size-[18px]" />
@@ -182,7 +184,7 @@ function TabBar() {
             className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-chrome backdrop-blur-xl backdrop-saturate-150 md:hidden"
             aria-label="Разделы"
         >
-            <div className="grid h-14 grid-cols-4">
+            <div className="grid h-14 grid-cols-4 pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
                 {NAV.map((item) => {
                     const active = isActive(item, url);
                     const Icon = item.icon;
@@ -193,7 +195,7 @@ function TabBar() {
                             href={item.href}
                             aria-current={active ? "page" : undefined}
                             className={cn(
-                                "flex flex-col items-center justify-center gap-0.5 text-[10.5px] font-medium text-muted-foreground",
+                                "flex flex-col items-center justify-center gap-0.5 px-0.5 text-center text-xs font-medium text-muted-foreground",
                                 active && "text-brand",
                             )}
                         >
@@ -212,11 +214,13 @@ function TabBar() {
 
 export default function AppLayout({ children }: { children: ReactNode }) {
     return (
-        <div className="min-h-dvh">
+        <div className="min-h-dvh pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
             <Sidebar />
             <div className="md:pl-[76px] lg:pl-64">
                 <Header />
-                <main className="px-4 pt-4 pb-28 md:px-6 md:pt-6 md:pb-12 lg:px-8">
+                <NetworkStatus />
+                <PullToRefresh />
+                <main data-pull-to-refresh className="px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))] md:px-6 md:pt-6 md:pb-[max(3rem,env(safe-area-inset-bottom))] lg:px-8">
                     {children}
                 </main>
             </div>

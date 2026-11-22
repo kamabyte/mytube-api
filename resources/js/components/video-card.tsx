@@ -1,4 +1,4 @@
-import { Link, router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { Check, CloudDownload, EllipsisVertical, FileX, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { ChannelAvatar } from '@/components/channel-avatar';
@@ -16,6 +16,7 @@ import type { DownloadState, Video } from '@/types';
  * сбросила бы бесконечную ленту, а саму карточку меню обновляет сразу.
  */
 const RELOAD_ONLY = ['deletePin'];
+const HOME_AFTER_DELETE = ['deletePin', 'featured', 'latest', 'shelves'];
 
 /** Меню «⋮» карточки: скачать, отменить, убрать файл, удалить видео. */
 function VideoActions({ video, onChange, onMarkWatched }: {
@@ -23,6 +24,7 @@ function VideoActions({ video, onChange, onMarkWatched }: {
     onChange: (next: DownloadState | 'removed') => void;
     onMarkWatched?: () => void;
 }) {
+    const { component } = usePage();
     const [dialog, setDialog] = useState<'file' | 'delete' | null>(null);
     const state = video.download_state;
     const canCancel = state === 'queued' && !!video.download_requested_at && !video.auto_download;
@@ -38,24 +40,30 @@ function VideoActions({ video, onChange, onMarkWatched }: {
 
     return (
         <>
+            {onMarkWatched && (
+                <Button
+                    variant="secondary"
+                    size="icon"
+                    aria-label="Отметить просмотренным"
+                    title="Отметить просмотренным"
+                    onClick={onMarkWatched}
+                    className="-mt-1 size-11 rounded-full"
+                >
+                    <Check />
+                </Button>
+            )}
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button
                         variant="ghost"
                         size="icon"
                         aria-label="Действия с видео"
-                        className="-mt-1 -mr-2 size-8 shrink-0 rounded-full text-muted-foreground md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 md:data-[state=open]:opacity-100"
+                        className="-mt-1 -mr-2 size-11 md:size-8 shrink-0 rounded-full text-muted-foreground md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 md:data-[state=open]:opacity-100"
                     >
                         <EllipsisVertical className="size-[18px]" />
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64">
-                    {onMarkWatched && (
-                        <DropdownMenuItem onSelect={onMarkWatched}>
-                            <Check />
-                            Отметить просмотренным
-                        </DropdownMenuItem>
-                    )}
                     {state === 'available' && (
                         <DropdownMenuItem onSelect={() => request('post', 'queued')}>
                             <CloudDownload />
@@ -79,7 +87,7 @@ function VideoActions({ video, onChange, onMarkWatched }: {
                             </span>
                         </DropdownMenuItem>
                     )}
-                    {(onMarkWatched || state === 'available' || canCancel || state === 'downloaded') && <DropdownMenuSeparator />}
+                    {(state === 'available' || canCancel || state === 'downloaded') && <DropdownMenuSeparator />}
                     <DropdownMenuItem variant="destructive" onSelect={() => setDialog('delete')}>
                         <Trash2 />
                         Удалить видео
@@ -108,10 +116,11 @@ function VideoActions({ video, onChange, onMarkWatched }: {
                 onOpenChange={(open) => setDialog(open ? 'delete' : null)}
                 url={`/videos/${video.id}`}
                 title="Удалить видео?"
-                only={RELOAD_ONLY}
+                only={component === 'home' ? HOME_AFTER_DELETE : RELOAD_ONLY}
                 onDeleted={() => {
+                    setDialog(null);
                     removeProgress(video.id);
-                    onChange('removed');
+                    if (component !== 'home') onChange('removed');
                 }}
             >
                 <p>
@@ -165,7 +174,7 @@ export function VideoCard({
                 />
                 <span className="sr-only">{video.name}</span>
             </Link>
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3">
                 {showChannel && video.channel && (
                     <Link href={`/channels/${video.channel.id}`} className="mt-0.5 shrink-0" tabIndex={-1} aria-hidden>
                         <ChannelAvatar channel={video.channel} className="size-9" />
@@ -217,7 +226,7 @@ export function VideoCardSkeleton() {
     return (
         <div className="flex flex-col gap-3">
             <div className="aspect-video animate-pulse rounded-xl bg-muted" />
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3">
                 <div className="size-9 animate-pulse rounded-full bg-muted" />
                 <div className="flex-1 space-y-2 pt-1">
                     <div className="h-3.5 w-11/12 animate-pulse rounded bg-muted" />

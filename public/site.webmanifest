@@ -10,6 +10,10 @@
     "display": "standalone",
     "background_color": "#0a0a0c",
     "theme_color": "#0a0a0c",
+    "shortcuts": [
+        { "name": "Все видео", "url": "/videos" },
+        { "name": "Поиск", "url": "/search" }
+    ],
     "icons": [
         {
             "src": "/icons/icon-192.png",

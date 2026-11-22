@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, Info, Pause, Play, Tv } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ImageOff, Info, Pause, Play } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChannelAvatar } from '@/components/channel-avatar';
 import { formatDuration, formatRelative } from '@/lib/format';
@@ -160,7 +160,7 @@ export function Hero({ videos }: { videos: Video[] }) {
             role="region"
             aria-label="Последние видео"
             aria-roledescription="карусель"
-            className="relative isolate overflow-hidden rounded-3xl bg-zinc-900 text-white shadow-xl shadow-black/10 dark:shadow-black/40"
+            className="relative isolate overflow-hidden rounded-2xl border bg-card text-card-foreground"
             onPointerEnter={(event) => event.pointerType === 'mouse' && setHovered(true)}
             onPointerLeave={(event) => event.pointerType === 'mouse' && setHovered(false)}
             onFocusCapture={() => setFocusPaused(true)}
@@ -190,15 +190,14 @@ export function Hero({ videos }: { videos: Video[] }) {
                             selected={selected}
                             first={realIndex === 0}
                             ratio={progressRatio(progress[video.id])}
-                            controls={loop}
                         />
                     );
                 })}
             </div>
 
             {loop && (
-                <div className="absolute bottom-5 left-5 flex items-center gap-3 sm:bottom-8 sm:left-8 lg:bottom-12 lg:left-12">
-                    <SlideButton label="Предыдущий слайд" onClick={() => navigate(-1)}>
+                <div className="flex min-h-12 items-center justify-center gap-1 border-t px-3 sm:justify-start sm:px-5 lg:px-7">
+                    <SlideButton label="Предыдущий слайд" className="hidden sm:inline-flex" onClick={() => navigate(-1)}>
                         <ChevronLeft className="size-5" />
                     </SlideButton>
                     <div className="flex items-center" role="group" aria-label="Выбор слайда">
@@ -212,16 +211,16 @@ export function Hero({ videos }: { videos: Video[] }) {
                                     setAutoPlay(false);
                                     moveTo(i + 1);
                                 }}
-                                className="group/dot flex h-9 items-center rounded-full px-1 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
+                                className="group/dot flex h-11 min-w-7 items-center justify-center rounded-full px-1.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                             >
                                 <span className={cn(
-                                    'block h-2.5 rounded-full transition-[width,background-color] duration-200 motion-reduce:transition-none',
-                                    i === index ? 'w-8 bg-white' : 'w-2.5 bg-white/40 group-hover/dot:bg-white/75',
+                                    'block h-1.5 rounded-full transition-[width,background-color] duration-200 motion-reduce:transition-none',
+                                    i === index ? 'w-5 bg-brand' : 'w-1.5 bg-muted-foreground/50 group-hover/dot:bg-foreground',
                                 )} />
                             </button>
                         ))}
                     </div>
-                    <SlideButton label="Следующий слайд" onClick={() => navigate(1)}>
+                    <SlideButton label="Следующий слайд" className="hidden sm:inline-flex" onClick={() => navigate(1)}>
                         <ChevronRight className="size-5" />
                     </SlideButton>
                     <SlideButton
@@ -242,15 +241,15 @@ export function Hero({ videos }: { videos: Video[] }) {
     );
 }
 
-function HeroSlide({ video, position, label, selected, first, ratio, controls }: {
+function HeroSlide({ video, position, label, selected, first, ratio }: {
     video: Video;
     position: number;
     label: string;
     selected: boolean;
     first: boolean;
     ratio: number;
-    controls: boolean;
 }) {
+    const [imageFailed, setImageFailed] = useState(false);
     const playable = video.download_state === 'downloaded';
     const resumable = playable && ratio > 0.02 && ratio < 1;
     const fresh = video.published_at && Date.now() - new Date(video.published_at).getTime() < 3 * 86400_000;
@@ -266,93 +265,69 @@ function HeroSlide({ video, position, label, selected, first, ratio, controls }:
             className="relative isolate w-full min-w-0 shrink-0 snap-start snap-always overflow-hidden"
             style={{ contain: 'layout paint' }}
         >
-            {video.thumbnail && (
-                <img
-                    src={video.thumbnail}
-                    alt=""
-                    aria-hidden
-                    draggable={false}
-                    decoding="async"
-                    className="absolute inset-0 -z-10 size-full scale-125 object-cover opacity-80 blur-2xl saturate-[1.4]"
-                />
-            )}
-            <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/80 via-black/45 to-black/25 lg:bg-gradient-to-r lg:from-black/80 lg:via-black/50 lg:to-black/20" />
-            <div className={cn(
-                'grid h-full items-center gap-6 p-5 sm:p-8 lg:grid-cols-[1fr_minmax(0,460px)] lg:gap-10 lg:p-12 xl:grid-cols-[1fr_minmax(0,520px)]',
-                controls && 'pb-24 sm:pb-28 lg:pb-32',
-            )}>
+            <div className="grid h-full items-center gap-3 p-3 sm:gap-5 sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-8 lg:p-7">
                 <Link
                     href={`/watch/${video.id}`}
-                    className="group relative block overflow-hidden rounded-2xl shadow-2xl ring-1 shadow-black/50 ring-white/10 lg:order-2"
+                    className="relative block aspect-video overflow-hidden rounded-xl bg-muted lg:order-2 lg:max-h-72"
                     tabIndex={-1}
                     aria-hidden
                     draggable={false}
                 >
-                    <div className="relative aspect-video">
-                        {video.thumbnail && (
-                            <img
-                                src={video.thumbnail}
-                                alt=""
-                                draggable={false}
-                                decoding="async"
-                                fetchPriority={first ? 'high' : 'low'}
-                                className="absolute inset-0 size-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03] motion-reduce:transition-none"
-                            />
-                        )}
-                        <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/20">
-                            <span className="flex size-14 scale-90 items-center justify-center rounded-full bg-white/90 text-black opacity-0 shadow-xl transition group-hover:scale-100 group-hover:opacity-100">
-                                {playable ? <Play className="size-6 translate-x-0.5 fill-current" /> : <Info className="size-6" />}
-                            </span>
+                    {video.thumbnail && !imageFailed ? (
+                        <img
+                            src={video.thumbnail}
+                            alt=""
+                            draggable={false}
+                            decoding="async"
+                            fetchPriority={first ? 'high' : 'low'}
+                            className="absolute inset-0 size-full object-cover"
+                            onError={() => setImageFailed(true)}
+                        />
+                    ) : (
+                        <ImageOff className="absolute top-1/2 left-1/2 size-6 -translate-x-1/2 -translate-y-1/2 text-muted-foreground/60" aria-hidden />
+                    )}
+                    {video.duration_seconds > 0 && (
+                        <span className="absolute right-2 bottom-2 rounded-md bg-black/75 px-1.5 py-0.5 text-xs font-medium text-white tabular-nums">
+                            {formatDuration(video.duration_seconds)}
                         </span>
-                        {resumable && (
-                            <div className="absolute inset-x-0 bottom-0 h-1 bg-white/30">
-                                <div className="h-full bg-brand" style={{ width: `${ratio * 100}%` }} />
-                            </div>
-                        )}
-                    </div>
+                    )}
+                    {resumable && (
+                        <div className="absolute inset-x-0 bottom-0 h-1 bg-white/30">
+                            <div className="h-full bg-brand" style={{ width: `${ratio * 100}%` }} />
+                        </div>
+                    )}
                 </Link>
-                <div className="flex min-w-0 flex-col gap-3 lg:order-1">
-                    <div className="h-6">
+                <div className="flex min-w-0 flex-col items-start px-1 pb-1 lg:order-1 lg:px-0">
+                    <div className="flex min-h-7 w-full flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground sm:text-sm">
                         {video.channel && (
-                            <Link href={`/channels/${video.channel.id}`} className="flex max-w-full items-center gap-2 text-sm font-medium text-white/85 hover:text-white" draggable={false}>
-                                <ChannelAvatar channel={video.channel} className="size-6 shrink-0 ring-white/20" />
+                            <Link href={`/channels/${video.channel.id}`} className="flex min-w-0 items-center gap-2 font-medium text-foreground hover:underline" draggable={false}>
+                                <ChannelAvatar channel={video.channel} className="size-6 shrink-0" />
                                 <span className="truncate">{video.channel.name}</span>
                             </Link>
                         )}
+                        {fresh && <span className="font-semibold text-brand">Новинка</span>}
+                        {video.published_at && <span>{formatRelative(video.published_at)}</span>}
                     </div>
-                    <div className="font-display flex min-h-[3lh] items-end text-2xl leading-tight font-bold sm:text-4xl xl:text-[44px]">
-                        <h2 className="line-clamp-3 text-balance">{video.name}</h2>
+                    <div className="font-display mt-2 min-h-[2lh] text-xl leading-tight font-bold sm:text-2xl lg:mt-3 lg:text-3xl">
+                        <h2 className="line-clamp-2 [overflow-wrap:anywhere]">{video.name}</h2>
                     </div>
-                    <div className="flex h-6 items-center gap-2 text-sm text-white/70">
-                        {fresh && <span className="rounded-md bg-white/15 px-1.5 py-0.5 text-xs font-semibold text-white">Новинка</span>}
-                        {video.duration_seconds > 0 && <span className="tabular-nums">{formatDuration(video.duration_seconds)}</span>}
-                        {video.published_at && <span>· {formatRelative(video.published_at)}</span>}
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-3">
-                        <Link href={`/watch/${video.id}`} draggable={false} className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-6 text-[15px] font-semibold text-black shadow-lg transition hover:scale-[1.03] hover:bg-white/90 active:scale-100">
-                            {playable ? <Play className="size-4 fill-current" /> : <Info className="size-4" />}
-                            {playable ? (resumable ? 'Продолжить' : 'Смотреть') : 'Подробнее'}
-                        </Link>
-                        {video.channel && (
-                            <Link href={`/channels/${video.channel.id}`} draggable={false} className="inline-flex h-11 items-center gap-2 rounded-full bg-white/15 px-5 text-[15px] font-semibold transition hover:bg-white/25">
-                                <Tv className="size-4" />
-                                Канал
-                            </Link>
-                        )}
-                    </div>
+                    <Link href={`/watch/${video.id}`} draggable={false} className="mt-3 inline-flex h-11 items-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 lg:mt-5">
+                        {playable ? <Play className="size-4 fill-current" /> : <Info className="size-4" />}
+                        {playable ? (resumable ? 'Продолжить' : 'Смотреть') : 'Подробнее'}
+                    </Link>
                 </div>
             </div>
         </div>
     );
 }
 
-function SlideButton({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+function SlideButton({ label, onClick, children, className }: { label: string; onClick: () => void; children: ReactNode; className?: string }) {
     return (
         <button
             type="button"
             aria-label={label}
             onClick={onClick}
-            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/15 transition hover:bg-white/25 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none active:scale-95"
+            className={cn("inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none", className)}
         >
             {children}
         </button>

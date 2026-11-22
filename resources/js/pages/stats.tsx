@@ -32,12 +32,12 @@ interface DayRow {
 
 function Tile({ icon: Icon, label, value, hint }: { icon: LucideIcon; label: string; value: string; hint?: string }) {
     return (
-        <div className="rounded-2xl border border-border/60 bg-card p-5">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Icon className="size-4" />
+        <div className="min-w-0 rounded-2xl border border-border/60 bg-card p-3.5 sm:p-5">
+            <div className="flex items-start gap-1.5 text-xs text-muted-foreground sm:items-center sm:gap-2 sm:text-sm">
+                <Icon className="mt-px size-4 shrink-0" />
                 {label}
             </div>
-            <div className="font-display mt-3 text-3xl font-bold tabular-nums md:text-[34px]">{value}</div>
+            <div className="font-display mt-2 text-xl font-bold tabular-nums [overflow-wrap:anywhere] sm:mt-3 sm:text-3xl md:text-[34px]">{value}</div>
             {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
         </div>
     );
@@ -56,7 +56,7 @@ function DailyChart({ days }: { days: DayRow[] }) {
     const active = hovered !== null ? days[hovered] : null;
 
     return (
-        <section className="rounded-2xl border border-border/60 bg-card p-5 md:p-6">
+        <section className="min-w-0 rounded-2xl border border-border/60 bg-card p-3.5 sm:p-5 md:p-6">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h2 className="font-display text-lg font-semibold">Скачано за 14 дней</h2>
                 <p className="text-sm text-muted-foreground">
@@ -87,7 +87,8 @@ function DailyChart({ days }: { days: DayRow[] }) {
                         <button
                             key={day.date}
                             type="button"
-                            className="group flex h-full flex-1 items-end focus-visible:outline-none"
+                            className="group flex h-full min-w-0 flex-1 items-end focus-visible:outline-none"
+                            onClick={() => setHovered(index)}
                             onMouseEnter={() => setHovered(index)}
                             onFocus={() => setHovered(index)}
                             onBlur={() => setHovered(null)}
@@ -108,7 +109,7 @@ function DailyChart({ days }: { days: DayRow[] }) {
                 {active && hovered !== null && (
                     <div
                         className="pointer-events-none absolute -top-2 z-10 -translate-x-1/2 -translate-y-full rounded-xl border border-border bg-popover px-3 py-2 text-xs whitespace-nowrap shadow-lg"
-                        style={{ left: `calc(${((hovered + 0.5) / days.length) * 100}% - ${((hovered + 0.5) / days.length) * 32}px)` }}
+                        style={{ left: `clamp(5rem, ${((hovered + 0.5) / days.length) * 100}% - ${((hovered + 0.5) / days.length) * 32}px, 100% - 5rem)` }}
                     >
                         <div className="font-semibold">{dayMonth.format(parseDay(active.date))}</div>
                         <div className="text-muted-foreground">
@@ -119,7 +120,7 @@ function DailyChart({ days }: { days: DayRow[] }) {
 
                 <div className="mt-2 flex gap-[2px] pr-8 text-center text-[10.5px] text-muted-foreground md:gap-1.5">
                     {days.map((day, index) => (
-                        <span key={day.date} className={cn('flex-1', index % 2 === 1 && 'max-md:invisible')}>
+                        <span key={day.date} className={cn('min-w-0 flex-1', index % 2 === 1 && 'max-md:invisible')}>
                             {parseDay(day.date).getDate()}
                             <span className="hidden md:block">{weekday.format(parseDay(day.date))}</span>
                         </span>
@@ -135,16 +136,16 @@ function StorageByChannel({ channels }: { channels: ChannelRow[] }) {
     const max = Math.max(1, ...channels.map((row) => Number(row.total_size_bytes)));
 
     return (
-        <section className="rounded-2xl border border-border/60 bg-card p-5 md:p-6">
+        <section className="min-w-0 rounded-2xl border border-border/60 bg-card p-3.5 sm:p-5 md:p-6">
             <h2 className="font-display text-lg font-semibold">Место по каналам</h2>
             <ol className="mt-5 flex flex-col gap-4">
                 {channels.map((row) => (
                     <li key={row.channel_id}>
-                        <div className="flex items-baseline justify-between gap-3 text-sm">
-                            <Link href={`/channels/${row.channel_id}`} className="min-w-0 truncate font-medium hover:underline">
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
+                            <Link href={`/channels/${row.channel_id}`} className="min-w-0 font-medium [overflow-wrap:anywhere] hover:underline">
                                 {row.channel_title}
                             </Link>
-                            <span className="shrink-0 text-muted-foreground tabular-nums">
+                            <span className="min-w-0 text-xs text-muted-foreground tabular-nums sm:text-sm">
                                 {formatBytes(Number(row.total_size_bytes))} · {formatNumber(row.video_count)}
                                 {row.not_downloaded_count > 0 && <> · ещё {formatNumber(row.not_downloaded_count)} не скачано</>}
                             </span>
@@ -168,7 +169,7 @@ export default function Stats({ summary, channels, daily }: { summary: Summary; 
             <Head title="Статистика" />
             <PageTitle>Статистика</PageTitle>
 
-            <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3 xl:grid-cols-6">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:gap-4 lg:grid-cols-3 2xl:grid-cols-6">
                 <Tile icon={Clapperboard} label="Видео" value={formatNumber(summary.total_videos - summary.videos_in_progress)} />
                 <Tile icon={Tv} label="Каналы" value={formatNumber(summary.total_channels)} />
                 <Tile icon={HardDrive} label="Объём" value={formatBytes(Number(summary.total_video_size))} />
@@ -192,7 +193,7 @@ export default function Stats({ summary, channels, daily }: { summary: Summary; 
                 />
             </div>
 
-            <div className="mt-6 grid items-start gap-6 xl:grid-cols-[3fr_2fr]">
+            <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
                 <DailyChart days={daily} />
                 <StorageByChannel channels={channels} />
             </div>

@@ -98,9 +98,10 @@ class VideoController extends Controller
         try {
             $removal = $cleaner->removeVideo($video);
         } catch (MediaUnavailable) {
-            Toast::error('Медиадиск недоступен — видео не удалено');
+            $message = 'Медиадиск недоступен — видео не удалено';
+            Toast::error($message);
 
-            return back();
+            return back()->withErrors(['delete' => $message]);
         }
 
         if ($removal->hasLeftovers()) {

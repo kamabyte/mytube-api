@@ -13,6 +13,7 @@ export interface ProgressEntry {
     duration: number;
     updatedAt: number;
     video: Video;
+    markedWatched?: boolean;
 }
 
 type Store = Record<string, ProgressEntry>;
@@ -69,6 +70,10 @@ export function useProgressStore(): Store {
     return useSyncExternalStore(subscribe, read, () => EMPTY);
 }
 
+export function getProgressStore(): Store {
+    return read();
+}
+
 export function getProgress(videoId: number): ProgressEntry | undefined {
     return read()[videoId];
 }
@@ -102,19 +107,23 @@ function snapshot(video: Video): Video {
     };
 }
 
-export function saveProgress(video: Video, position: number, duration: number) {
+export function saveProgress(video: Video, position: number, duration: number, markedWatched = false) {
     if (!duration || !Number.isFinite(duration)) {
         return;
     }
 
     const next: Store = {
         ...read(),
-        [video.id]: { position, duration, updatedAt: Date.now(), video: snapshot(video) },
+        [video.id]: { position, duration, updatedAt: Date.now(), video: snapshot(video), markedWatched },
     };
 
     const entries = Object.entries(next);
     entries.sort(([, a], [, b]) => b.updatedAt - a.updatedAt);
     write(Object.fromEntries(entries.slice(0, MAX_ENTRIES)));
+}
+
+export function markWatched(video: Video, duration: number) {
+    saveProgress(video, duration, duration, true);
 }
 
 export function removeProgress(videoId: number) {
@@ -180,10 +189,13 @@ async function syncWithLibrary(signal: AbortSignal) {
     const next = { ...read() };
 
     for (const id of ids) {
+        const entry = next[id];
+        if (!entry || !isUnfinished(entry)) continue;
+
         const video = found.get(id);
 
         if (video) {
-            next[id] = { ...next[id], video: snapshot(video) };
+            next[id] = { ...entry, video: snapshot(video) };
         } else {
             delete next[id];
         }
@@ -192,7 +204,7 @@ async function syncWithLibrary(signal: AbortSignal) {
     write(next);
 }
 
-export function useContinueWatching(limit = 20): ProgressEntry[] {
+export function useContinueWatching(libraryVersion: Video[], limit = 20): ProgressEntry[] {
     const store = useProgressStore();
 
     useEffect(() => {
@@ -201,7 +213,7 @@ export function useContinueWatching(limit = 20): ProgressEntry[] {
         syncWithLibrary(controller.signal).catch(() => {});
 
         return () => controller.abort();
-    }, []);
+    }, [libraryVersion]);
 
     return Object.values(store)
         .filter(isUnfinished)

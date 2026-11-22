@@ -6,7 +6,7 @@ import { Hero } from '@/components/hero';
 import { Shelf } from '@/components/shelf';
 import { VideoCard } from '@/components/video-card';
 import { channelVideoCounts } from '@/lib/format';
-import { saveProgress, useContinueWatching } from '@/lib/watch-progress';
+import { markWatched, useContinueWatching } from '@/lib/watch-progress';
 import type { ChannelSummary, Video } from '@/types';
 
 interface Props {
@@ -16,7 +16,7 @@ interface Props {
 }
 
 export default function Home({ featured, latest, shelves }: Props) {
-    const continueWatching = useContinueWatching();
+    const continueWatching = useContinueWatching(latest);
 
     // Пусто — только если нет ни скачанного, ни каталога.
     if (featured.length === 0 && latest.length === 0) {
@@ -42,7 +42,7 @@ export default function Home({ featured, latest, shelves }: Props) {
                             <VideoCard
                                 key={entry.video.id}
                                 video={entry.video}
-                                onMarkWatched={() => saveProgress(entry.video, entry.duration, entry.duration)}
+                                onMarkWatched={() => markWatched(entry.video, entry.duration)}
                             />
                         ))}
                     </Shelf>
