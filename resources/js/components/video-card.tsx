@@ -19,10 +19,9 @@ const RELOAD_ONLY = ['deletePin'];
 const HOME_AFTER_DELETE = ['deletePin', 'latest', 'shelves'];
 
 /** Меню «⋮» карточки: скачать, отменить, убрать файл, удалить видео. */
-function VideoActions({ video, onChange, onMarkWatched }: {
+function VideoActions({ video, onChange }: {
     video: Video;
     onChange: (next: DownloadState | 'removed') => void;
-    onMarkWatched?: () => void;
 }) {
     const { component } = usePage();
     const [dialog, setDialog] = useState<'file' | 'delete' | null>(null);
@@ -40,18 +39,6 @@ function VideoActions({ video, onChange, onMarkWatched }: {
 
     return (
         <>
-            {onMarkWatched && (
-                <Button
-                    variant="secondary"
-                    size="icon"
-                    aria-label="Отметить просмотренным"
-                    title="Отметить просмотренным"
-                    onClick={onMarkWatched}
-                    className="-mt-1 size-11 rounded-full"
-                >
-                    <Check />
-                </Button>
-            )}
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button
@@ -174,6 +161,19 @@ export function VideoCard({
                 />
                 <span className="sr-only">{video.name}</span>
             </Link>
+            {onMarkWatched && (
+                <button
+                    type="button"
+                    aria-label="Отметить просмотренным"
+                    title="Отметить просмотренным"
+                    onClick={onMarkWatched}
+                    className="group/watched absolute top-0 right-0 grid size-11 place-items-center rounded-xl text-white focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                    <span className="grid size-7 place-items-center rounded-lg bg-black/70 transition-colors group-hover/watched:bg-black/90">
+                        <Check className="size-4" aria-hidden="true" />
+                    </span>
+                </button>
+            )}
             <div className="flex gap-2 sm:gap-3">
                 {showChannel && video.channel && (
                     <Link href={`/channels/${video.channel.id}`} className="mt-0.5 shrink-0" tabIndex={-1} aria-hidden>
@@ -193,7 +193,7 @@ export function VideoCard({
                         <Meta video={video} />
                     </div>
                 </div>
-                <VideoActions video={video} onChange={setOverride} onMarkWatched={onMarkWatched} />
+                <VideoActions video={video} onChange={setOverride} />
             </div>
         </article>
     );
