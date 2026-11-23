@@ -8,6 +8,7 @@ import { initializeTheme } from '@/hooks/use-appearance';
 import AppLayout from '@/layouts/app-layout';
 import { setupEcho } from '@/lib/echo';
 import { registerServiceWorker } from '@/lib/pwa';
+import { enableTouchFeedback } from '@/lib/touch-feedback';
 import OnDevice from '@/pages/on-device';
 
 const live = setupEcho();
@@ -40,4 +41,5 @@ void createInertiaApp({
 });
 
 initializeTheme();
+enableTouchFeedback();
 registerServiceWorker();

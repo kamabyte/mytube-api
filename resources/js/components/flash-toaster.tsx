@@ -25,7 +25,7 @@ export function FlashToaster() {
         <Toaster
             position="bottom-right"
             offset={{ bottom: 24, right: 24 }}
-            mobileOffset={{ bottom: 72 }}
+            mobileOffset={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}
             toastOptions={{ classNames: { description: '!text-muted-foreground', title: '!font-semibold' } }}
             style={
                 {

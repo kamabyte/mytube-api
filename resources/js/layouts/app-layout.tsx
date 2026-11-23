@@ -92,7 +92,7 @@ function Sidebar({ compact }: { compact: boolean }) {
                                     aria-label={item.label}
                                     aria-current={active ? "page" : undefined}
                                     className={cn(
-                                        "group flex h-11 items-center justify-center gap-3.5 rounded-xl px-3 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground",
+                                        "pressable group flex h-11 items-center justify-center gap-3.5 rounded-xl px-3 text-[15px] font-medium text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground active:bg-accent data-loading:bg-accent",
                                         !compact && "lg:justify-start",
                                         active && "bg-accent text-foreground",
                                     )}
@@ -230,7 +230,7 @@ function TabBar() {
                             aria-label={item.label}
                             aria-current={active ? "page" : undefined}
                             className={cn(
-                                "flex flex-col items-center justify-center gap-0.5 px-0.5 text-center text-xs font-medium text-muted-foreground",
+                                "pressable flex flex-col items-center justify-center gap-0.5 rounded-lg px-0.5 text-center text-xs font-medium text-muted-foreground outline-none transition-[background-color,color,opacity,scale] duration-150 hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:bg-accent data-pressed:bg-accent data-loading:bg-accent data-loading:text-foreground",
                                 active && "text-brand",
                             )}
                         >

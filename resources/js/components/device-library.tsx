@@ -180,7 +180,7 @@ export function DeviceLibrary({ disconnected = false }: { disconnected?: boolean
                             <button
                                 type="button"
                                 aria-pressed={selectedId === entry.id}
-                                className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 text-left hover:bg-accent aria-pressed:bg-accent"
+                                className="pressable flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 text-left transition-[background-color,opacity,scale] hover:bg-accent active:bg-accent aria-pressed:bg-accent"
                                 onClick={() => { setError(null); setSelectedId(entry.id); }}
                             >
                                 <Preview poster={entry.poster} />

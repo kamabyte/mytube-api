@@ -1,6 +1,5 @@
 import { useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
-import { formatBytes } from '@/lib/format';
 import { saveVideoForOffline, savedVideo } from '@/lib/offline-video';
 import type { Video, VideoDetail } from '@/types';
 
@@ -16,6 +15,14 @@ export interface OfflineDownload {
 const EMPTY: ReadonlyMap<number, OfflineDownload> = new Map();
 let downloads = EMPTY;
 const listeners = new Set<() => void>();
+let downloadToast: ReturnType<typeof toast> | undefined;
+
+function showDownloadToast(message: string, description: string, failed = false) {
+    if (downloadToast !== undefined) toast.dismiss(downloadToast);
+    const options = { description, duration: failed ? 5000 : 3000, className: 'pointer-events-none' };
+    downloadToast = failed ? toast.error(message, options) : toast(message, options);
+    return downloadToast;
+}
 
 function subscribe(listener: () => void) {
     listeners.add(listener);
@@ -64,9 +71,7 @@ export async function startOfflineDownload(video: Video | VideoDetail) {
     };
     update(video.id, download);
 
-    const message = 'Сохраняем для офлайна';
-    const hint = 'Держите MyTube открытым';
-    const toastId = toast.loading(message, { description: hint });
+    const toastId = showDownloadToast('Скачивание для офлайна началось', video.name);
     void navigator.storage.persist?.().catch(() => {});
 
     try {
@@ -87,23 +92,17 @@ export async function startOfflineDownload(video: Video | VideoDetail) {
             if (!detail.stream_url) throw new Error('Видео ещё не скачано на сервер.');
             await saveVideoForOffline({ ...detail, stream_url: detail.stream_url }, signal, (received, total) => {
                 if (signal.aborted) return;
-                const current = { ...download, received, total };
-                update(video.id, current);
-                const percent = offlineDownloadPercent(current);
-                const progress = percent === undefined ? formatBytes(received) : `${percent}%`;
-                toast.loading(message, { id: toastId, description: `${progress} · ${hint}` });
+                update(video.id, { ...download, received, total });
             });
         }
-
-        toast.success('Видео сохранено в разделе «Офлайн»', { id: toastId });
     } catch (error) {
         if (signal.aborted) {
-            toast.dismiss(toastId);
+            if (downloadToast === toastId) toast.dismiss(toastId);
         } else {
             const description = error instanceof DOMException && error.name === 'QuotaExceededError'
                 ? 'На устройстве не хватает места.'
                 : error instanceof Error ? error.message : undefined;
-            toast.error('Не удалось сохранить видео для офлайна', { id: toastId, description });
+            showDownloadToast('Не удалось сохранить видео для офлайна', [video.name, description].filter(Boolean).join(' · '), true);
         }
     } finally {
         update(video.id);

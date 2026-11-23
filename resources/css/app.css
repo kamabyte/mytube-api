@@ -142,7 +142,7 @@
     }
 
     html {
-        -webkit-tap-highlight-color: transparent;
+        -webkit-tap-highlight-color: color-mix(in oklch, var(--foreground) 15%, transparent);
         scroll-padding-top: calc(4rem + env(safe-area-inset-top));
         scroll-padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
 
@@ -175,6 +175,20 @@
 
 @utility pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
+}
+
+@utility pressable {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+
+    &:is(:active, [data-pressed]):not(:disabled, [aria-disabled="true"]) {
+        opacity: 0.72;
+        transition-duration: 70ms;
+
+        @media (prefers-reduced-motion: no-preference) {
+            scale: 0.96;
+        }
+    }
 }
 
 @media (pointer: coarse) {

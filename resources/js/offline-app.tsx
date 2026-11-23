@@ -9,6 +9,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
 import { DEVICE_LIBRARY } from '@/lib/offline-video';
 import { registerServiceWorker } from '@/lib/pwa';
+import { enableTouchFeedback } from '@/lib/touch-feedback';
 
 function OfflineApp() {
     return (
@@ -27,5 +28,6 @@ function OfflineApp() {
 }
 
 initializeTheme();
+enableTouchFeedback();
 registerServiceWorker();
 createRoot(document.getElementById('mytube-device')!).render(<TooltipProvider><OfflineApp /></TooltipProvider>);
