@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Route;
  * Веб-клиент. JSON API для ТВ-клиентов — под /api (routes/api.php).
  */
 Route::get('/', HomeController::class)->name('home');
+Route::view('/on-device', 'on-device')->name('on-device');
 
 Route::get('/videos', [VideoController::class, 'index'])->name('videos.index');
 Route::get('/videos/lookup', [VideoController::class, 'lookup'])->name('videos.lookup');

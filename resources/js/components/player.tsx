@@ -144,6 +144,7 @@ function isTyping(target: EventTarget | null) {
  */
 export function Player({
     video,
+    poster = video.thumbnail,
     next,
     autoplayNext,
     onAutoplayNextChange,
@@ -152,6 +153,7 @@ export function Player({
     onReady,
 }: {
     video: PlayableVideo;
+    poster?: string | null;
     next?: Video;
     autoplayNext: boolean;
     onAutoplayNextChange?: (value: boolean) => void;
@@ -501,11 +503,11 @@ export function Player({
         navigator.mediaSession.metadata = new MediaMetadata({
             title: video.name,
             artist: video.channel?.name ?? 'MyTube',
-            artwork: video.thumbnail ? [{ src: new URL(video.thumbnail, window.location.origin).href }] : [],
+            artwork: poster ? [{ src: new URL(poster, window.location.origin).href }] : [],
         });
         navigator.mediaSession.setActionHandler('nexttrack', next ? goNext : null);
         return () => navigator.mediaSession.setActionHandler('nexttrack', null);
-    }, [video, next, goNext]);
+    }, [video, poster, next, goNext]);
 
     // Горячие клавиши как на YouTube. По event.code — чтобы работали и в
     // русской раскладке. Стрелки вверх/вниз — только когда фокус в плеере,
@@ -629,7 +631,7 @@ export function Player({
                 key={video.id}
                 ref={attach}
                 src={video.stream_url}
-                poster={blocked ? (video.thumbnail ?? undefined) : undefined}
+                poster={blocked ? (poster ?? undefined) : undefined}
                 playsInline
                 preload="metadata"
                 className={cn('w-full bg-black', fullscreen ? 'h-full object-contain' : 'aspect-video')}

@@ -12,7 +12,8 @@
     "theme_color": "#0a0a0c",
     "shortcuts": [
         { "name": "Все видео", "url": "/videos" },
-        { "name": "Поиск", "url": "/search" }
+        { "name": "Поиск", "url": "/search" },
+        { "name": "На устройстве", "url": "/on-device" }
     ],
     "icons": [
         {

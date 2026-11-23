@@ -2,6 +2,7 @@ import { Link, usePage } from "@inertiajs/react";
 import {
     ChartColumnBig,
     Clapperboard,
+    HardDrive,
     House,
     type LucideIcon,
     PanelLeftClose,
@@ -26,6 +27,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useStoredToggle } from "@/hooks/use-stored-toggle";
 import { useChannelViews } from "@/lib/channel-views";
+import { DEVICE_LIBRARY } from "@/lib/offline-video";
 import { cn } from "@/lib/utils";
 import type { SharedProps } from "@/types";
 
@@ -33,6 +35,7 @@ interface NavItem {
     href: string;
     label: string;
     icon: LucideIcon;
+    shortLabel?: string;
     /** Какие адреса подсвечивают пункт, кроме самого href. */
     match?: RegExp;
 }
@@ -46,6 +49,7 @@ const NAV: NavItem[] = [
         match: /^\/(videos|watch)\b/,
     },
     { href: "/channels", label: "Каналы", icon: Tv, match: /^\/channels\b/ },
+    { href: DEVICE_LIBRARY, label: "На устройстве", shortLabel: "Офлайн", icon: HardDrive },
     { href: "/statistics", label: "Статистика", icon: ChartColumnBig },
 ];
 
@@ -77,13 +81,14 @@ function Sidebar({ compact }: { compact: boolean }) {
                 {NAV.map((item) => {
                     const active = isActive(item, url);
                     const Icon = item.icon;
+                    const NavLink = item.href === DEVICE_LIBRARY ? "a" : Link;
 
                     return (
                         <Tooltip key={item.href}>
                             <TooltipTrigger asChild>
-                                <Link
+                                <NavLink
                                     href={item.href}
-                                    prefetch
+                                    {...(item.href === DEVICE_LIBRARY ? {} : { prefetch: true })}
                                     aria-label={item.label}
                                     aria-current={active ? "page" : undefined}
                                     className={cn(
@@ -100,7 +105,7 @@ function Sidebar({ compact }: { compact: boolean }) {
                                         strokeWidth={active ? 2.25 : 1.9}
                                     />
                                     {!compact && <span className="hidden lg:inline">{item.label}</span>}
-                                </Link>
+                                </NavLink>
                             </TooltipTrigger>
                             <TooltipContent side="right" className={cn(!compact && "lg:hidden")}>
                                 {item.label}
@@ -206,15 +211,17 @@ function TabBar() {
             className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-chrome backdrop-blur-xl backdrop-saturate-150 md:hidden"
             aria-label="Разделы"
         >
-            <div className="grid h-14 grid-cols-4 pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
+            <div className="grid h-14 grid-cols-5 pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
                 {NAV.map((item) => {
                     const active = isActive(item, url);
                     const Icon = item.icon;
+                    const NavLink = item.href === DEVICE_LIBRARY ? "a" : Link;
 
                     return (
-                        <Link
+                        <NavLink
                             key={item.href}
                             href={item.href}
+                            aria-label={item.label}
                             aria-current={active ? "page" : undefined}
                             className={cn(
                                 "flex flex-col items-center justify-center gap-0.5 px-0.5 text-center text-xs font-medium text-muted-foreground",
@@ -225,8 +232,8 @@ function TabBar() {
                                 className="size-[22px]"
                                 strokeWidth={active ? 2.2 : 1.8}
                             />
-                            {item.label}
-                        </Link>
+                            {item.shortLabel ?? item.label}
+                        </NavLink>
                     );
                 })}
             </div>

@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { ChannelAvatar } from '@/components/channel-avatar';
 import { DeleteDialog } from '@/components/delete-dialog';
 import { DownloadStage } from '@/components/download-stage';
+import { OfflineSaveButton } from '@/components/offline-save-button';
 import { Player, type PlayerHandle } from '@/components/player';
 import { RichText } from '@/components/rich-text';
 import { Button } from '@/components/ui/button';
@@ -194,6 +195,8 @@ export default function Watch({ video, channel, upNext }: Props) {
                                 <VideoMenu video={video} />
                             </div>
                         </div>
+
+                        {playable && <OfflineSaveButton key={playable.id} video={playable} />}
 
                         <div className="mt-4 rounded-2xl bg-black/[0.04] p-4 text-sm dark:bg-white/[0.06]">
                             <div className="font-semibold">

@@ -1,11 +1,54 @@
 const CACHE_PREFIX = 'mytube-offline-';
-const CACHE_NAME = `${CACHE_PREFIX}v1`;
+const CACHE_NAME = `${CACHE_PREFIX}v2`;
 const OFFLINE_PAGE = '/offline.html';
+const DEVICE_LIBRARY = '/on-device';
+const BUILD_ASSETS = '/build/assets/';
+const BUILD_MANIFEST = '/build/manifest.json';
+const DEVICE_ENTRY = 'resources/js/offline-app.tsx';
+
+async function cacheDeviceLibrary(cache, response) {
+    if (!response.ok) throw new Error('Offline library is unavailable');
+
+    const build = await fetch(BUILD_MANIFEST, { cache: 'reload' });
+    if (!build.ok) throw new Error('Build manifest is unavailable');
+    const [html, manifest] = await Promise.all([response.clone().text(), build.json()]);
+    const assets = new Set();
+    for (const [, value] of html.matchAll(/\b(?:src|href)="([^"]+)"/g)) {
+        const asset = new URL(value, self.location.origin);
+        // Laravel may render absolute HTTP asset URLs behind the HTTPS proxy.
+        if (asset.host === self.location.host && asset.pathname.startsWith(BUILD_ASSETS)) {
+            assets.add(asset.pathname + asset.search);
+        }
+    }
+
+    const entry = manifest[DEVICE_ENTRY];
+    if (!entry || !assets.has(`/build/${entry.file}`)) throw new Error('Offline library does not match the build manifest');
+
+    const visited = new Set();
+    function includeChunk(name) {
+        if (visited.has(name)) return;
+        visited.add(name);
+        const chunk = manifest[name];
+        for (const file of [chunk.file, ...(chunk.css ?? []), ...(chunk.assets ?? [])]) {
+            assets.add(`/build/${file}`);
+        }
+        for (const dependency of [...(chunk.imports ?? []), ...(chunk.dynamicImports ?? [])]) {
+            includeChunk(dependency);
+        }
+    }
+    includeChunk(DEVICE_ENTRY);
+    includeChunk('resources/css/app.css');
+
+    const missing = await Promise.all([...assets].map(async (asset) => await cache.match(asset) ? null : asset));
+    await cache.addAll(missing.filter(Boolean));
+    await cache.put(DEVICE_LIBRARY, response);
+}
 
 self.addEventListener('install', (event) => {
     event.waitUntil((async () => {
         const cache = await caches.open(CACHE_NAME);
         await cache.add(new Request(OFFLINE_PAGE, { cache: 'reload' }));
+        await cacheDeviceLibrary(cache, await fetch(DEVICE_LIBRARY, { cache: 'reload' }));
         await self.skipWaiting();
     })());
 });
@@ -23,21 +66,34 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const { request } = event;
     const url = new URL(request.url);
-    if (request.method !== 'GET' || request.mode !== 'navigate' ||
-        url.origin !== self.location.origin || url.pathname.startsWith('/api/')) {
+    if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+
+    if (url.pathname.startsWith(BUILD_ASSETS)) {
+        event.respondWith((async () => (await caches.match(request)) ?? fetch(request))());
         return;
     }
 
+    if (request.mode !== 'navigate' || url.pathname.startsWith('/api/')) return;
+
     event.respondWith((async () => {
+        const cache = await caches.open(CACHE_NAME);
         let response;
         try {
             response = await fetch(request);
-            if (![502, 503, 504].includes(response.status)) return response;
+            if (![502, 503, 504].includes(response.status)) {
+                if (url.pathname === DEVICE_LIBRARY && response.ok) {
+                    try {
+                        await cacheDeviceLibrary(cache, response.clone());
+                    } catch {
+                        // A rebuild may invalidate its assets. Keep the previous complete shell.
+                    }
+                }
+                return response;
+            }
         } catch {
             // The backend can be unreachable even while the device is online.
         }
 
-        const cache = await caches.open(CACHE_NAME);
-        return (await cache.match(OFFLINE_PAGE)) ?? response ?? Response.error();
+        return (await cache.match(DEVICE_LIBRARY)) ?? (await cache.match(OFFLINE_PAGE)) ?? response ?? Response.error();
     })());
 });
