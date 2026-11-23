@@ -1,10 +1,11 @@
 const CACHE_PREFIX = 'mytube-offline-';
-const CACHE_NAME = `${CACHE_PREFIX}v5`;
+const CACHE_NAME = `${CACHE_PREFIX}v6`;
 const OFFLINE_PAGE = '/offline.html';
 const DEVICE_LIBRARY = '/on-device';
 const BUILD_ASSETS = '/build/assets/';
 const BUILD_MANIFEST = '/build/manifest.json';
 const DEVICE_ENTRY = 'resources/js/offline-app.tsx';
+const NAVIGATION_TIMEOUT = 4000;
 
 async function cacheDeviceLibrary(cache, response) {
     if (!response.ok) throw new Error('Offline library is unavailable');
@@ -77,21 +78,37 @@ self.addEventListener('fetch', (event) => {
 
     event.respondWith((async () => {
         const cache = await caches.open(CACHE_NAME);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), NAVIGATION_TIMEOUT);
         let response;
+        let reachable = false;
         try {
-            response = await fetch(request);
-            if (![502, 503, 504].includes(response.status)) {
-                if (url.pathname === DEVICE_LIBRARY && response.ok) {
-                    try {
-                        await cacheDeviceLibrary(cache, response.clone());
-                    } catch {
-                        // A rebuild may invalidate its assets. Keep the previous complete shell.
-                    }
-                }
-                return response;
+            response = await fetch(request, { signal: controller.signal });
+            // A proxy can reject requests from outside the home network. Preserve
+            // ordinary authorization errors from the app if the health check succeeds.
+            if (response.status === 403) {
+                const health = await fetch('/up', {
+                    method: 'HEAD', cache: 'no-store', redirect: 'error', signal: controller.signal,
+                });
+                reachable = health.ok;
+            } else {
+                reachable = ![502, 503, 504].includes(response.status);
             }
         } catch {
             // The backend can be unreachable even while the device is online.
+        } finally {
+            clearTimeout(timeout);
+        }
+
+        if (reachable) {
+            if (url.pathname === DEVICE_LIBRARY && response.ok) {
+                try {
+                    await cacheDeviceLibrary(cache, response.clone());
+                } catch {
+                    // A rebuild may invalidate its assets. Keep the previous complete shell.
+                }
+            }
+            return response;
         }
 
         return (await cache.match(DEVICE_LIBRARY)) ?? (await cache.match(OFFLINE_PAGE)) ?? response ?? Response.error();

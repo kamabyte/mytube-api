@@ -1,11 +1,12 @@
-import { Clapperboard, HardDrive, Trash2, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Clapperboard, HardDrive, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Player } from '@/components/player';
 import { Button } from '@/components/ui/button';
 import { formatBytes, formatDuration } from '@/lib/format';
 import { cancelOfflineDownload, offlineDownloadPercent, type OfflineDownload, useOfflineDownloads } from '@/lib/offline-downloads';
-import { deleteSavedVideo, offlinePlayback, onSavedVideosChange, type SavedVideo, savedVideos, supportsOfflineVideo } from '@/lib/offline-video';
+import { deleteAllSavedVideos, deleteSavedVideo, offlinePlayback, onSavedVideosChange, type SavedVideo, savedVideos, supportsOfflineVideo } from '@/lib/offline-video';
+import { cn } from '@/lib/utils';
 
 function Preview({ poster }: { poster: Blob | null }) {
     const [url, setUrl] = useState<string | null>(null);
@@ -69,9 +70,11 @@ export function DeviceLibrary({ disconnected = false }: { disconnected?: boolean
         return Number(url.searchParams.get('video') ?? url.pathname.match(/^\/watch\/(\d+)$/)?.[1]) || null;
     });
     const [playing, setPlaying] = useState<{ entry: SavedVideo; source: Awaited<ReturnType<typeof offlinePlayback>> } | null>(null);
-    const [removing, setRemoving] = useState<SavedVideo | null>(null);
+    const [editing, setEditing] = useState(false);
+    const [removing, setRemoving] = useState<SavedVideo | 'all' | null>(null);
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const swipedRow = useRef<HTMLDivElement | null>(null);
     const selected = entries?.find((entry) => entry.id === selectedId);
     const source = selected && playing?.entry === selected ? playing.source : null;
 
@@ -120,32 +123,59 @@ export function DeviceLibrary({ disconnected = false }: { disconnected?: boolean
         };
     }, [selected]);
 
+    function closeSwipe() {
+        swipedRow.current?.scrollTo({ left: 0, behavior: 'instant' });
+        swipedRow.current = null;
+    }
+
+    function activateRow(row: HTMLDivElement) {
+        if (swipedRow.current === row) return;
+        closeSwipe();
+        swipedRow.current = row;
+    }
+
     async function remove() {
         if (!removing) return;
-        const id = removing.id;
+        const all = removing === 'all';
         setProcessing(true);
         setError(null);
-        if (id === selectedId) setSelectedId(null);
+        closeSwipe();
+        if (all || removing.id === selectedId) setSelectedId(null);
         try {
-            await deleteSavedVideo(id);
-            setRemoving(null);
+            if (all) await deleteAllSavedVideos();
+            else await deleteSavedVideo(removing.id);
+            if (all || entries?.length === 1) setEditing(false);
         } catch {
-            setRemoving(null);
-            setError('Не удалось удалить локальную копию.');
+            setError(all ? 'Не удалось удалить сохранённые видео.' : 'Не удалось удалить локальную копию.');
         } finally {
+            setRemoving(null);
             setProcessing(false);
         }
     }
 
     return (
         <section className="space-y-4" data-no-pull-refresh>
-            <div>
-                <h1 className="font-display text-2xl font-bold">На устройстве</h1>
-                {disconnected && (
-                    <p role="status" className="mt-1 text-sm text-muted-foreground">Нет связи с сервером MyTube.</p>
-                )}
+            <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                <div>
+                    <h1 className="font-display text-2xl font-bold">На устройстве</h1>
+                    {disconnected && (
+                        <p role="status" className="mt-1 text-sm text-muted-foreground">Нет связи с сервером MyTube.</p>
+                    )}
+                    {!!entries?.length && (
+                        <p className="mt-1 text-sm text-muted-foreground">Занято {formatBytes(entries.reduce((sum, item) => sum + item.bytes, 0))}</p>
+                    )}
+                </div>
                 {!!entries?.length && (
-                    <p className="mt-1 text-sm text-muted-foreground">Занято {formatBytes(entries.reduce((sum, item) => sum + item.bytes, 0))}</p>
+                    <div className="flex items-center gap-1">
+                        {editing && (
+                            <Button type="button" variant="ghost" className="min-h-11 rounded-full text-destructive" onClick={() => setRemoving('all')}>
+                                Удалить все
+                            </Button>
+                        )}
+                        <Button type="button" variant="ghost" className="min-h-11 rounded-full" onClick={() => { closeSwipe(); setEditing(!editing); }}>
+                            {editing ? 'Готово' : 'Изменить'}
+                        </Button>
+                    </div>
                 )}
             </div>
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
@@ -176,31 +206,49 @@ export function DeviceLibrary({ disconnected = false }: { disconnected?: boolean
             ) : (
                 <ul className="divide-y divide-border/60">
                     {entries?.map((entry) => (
-                        <li key={entry.id} className="flex items-center gap-2 py-2">
-                            <button
-                                type="button"
-                                aria-pressed={selectedId === entry.id}
-                                className="pressable flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 text-left transition-[background-color,opacity,scale] hover:bg-accent active:bg-accent aria-pressed:bg-accent"
-                                onClick={() => { setError(null); setSelectedId(entry.id); }}
+                        <li key={entry.id} className="py-2">
+                            <div
+                                className={cn('flex items-center gap-2', !editing && 'scrollbar-none snap-x snap-mandatory overflow-x-auto overscroll-x-contain')}
+                                onPointerDown={(event) => activateRow(event.currentTarget)}
+                                onFocus={(event) => activateRow(event.currentTarget)}
                             >
-                                <Preview poster={entry.poster} />
-                                <span className="min-w-0">
-                                    <span className="line-clamp-2 block text-sm font-medium">{entry.video.name}</span>
-                                    <span className="block truncate text-xs text-muted-foreground">
-                                        {formatDuration(entry.video.duration_seconds)} · {formatBytes(entry.bytes)}
+                                <button
+                                    type="button"
+                                    aria-pressed={selectedId === entry.id}
+                                    className={cn(
+                                        'pressable flex min-w-0 items-center gap-3 rounded-lg p-1 text-left transition-[background-color,opacity,scale] hover:bg-accent active:bg-accent aria-pressed:bg-accent',
+                                        editing ? 'flex-1' : 'w-full flex-none snap-start',
+                                    )}
+                                    onClick={() => { closeSwipe(); setError(null); setSelectedId(entry.id); }}
+                                >
+                                    <Preview poster={entry.poster} />
+                                    <span className="min-w-0">
+                                        <span className="line-clamp-2 block text-sm font-medium">{entry.video.name}</span>
+                                        <span className="block truncate text-xs text-muted-foreground">
+                                            {formatDuration(entry.video.duration_seconds)} · {formatBytes(entry.bytes)}
+                                        </span>
                                     </span>
-                                </span>
-                            </button>
-                            <Button size="icon" variant="ghost" className="size-11 shrink-0" aria-label={`Удалить с устройства «${entry.video.name}»`} onClick={() => setRemoving(entry)}>
-                                <Trash2 />
-                            </Button>
+                                </button>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    className="h-auto min-h-11 min-w-24 flex-none snap-end self-stretch rounded-lg"
+                                    aria-label={`Удалить с устройства «${entry.video.name}»`}
+                                    onClick={() => setRemoving(entry)}
+                                >
+                                    Удалить
+                                </Button>
+                            </div>
                         </li>
                     ))}
                 </ul>
             )}
             <ConfirmDialog open={removing !== null} onOpenChange={(open) => !open && setRemoving(null)}
-                title="Удалить видео с устройства?" confirmLabel="Удалить" processing={processing} onConfirm={remove}>
-                <p>Локальная копия «{removing?.video.name}» будет удалена.</p>
+                title={removing === 'all' ? 'Удалить все видео с устройства?' : 'Удалить видео с устройства?'}
+                confirmLabel={removing === 'all' ? 'Удалить все' : 'Удалить'} processing={processing} onConfirm={remove}>
+                <p>{removing === 'all'
+                    ? 'Будут удалены все сохранённые видео на этом устройстве.'
+                    : `Локальная копия «${removing?.video.name ?? ''}» будет удалена.`}</p>
             </ConfirmDialog>
         </section>
     );

@@ -53,17 +53,17 @@ async function read<T>(query: (store: IDBObjectStore) => IDBRequest<T>): Promise
     }
 }
 
-/** Read and replace the index entry in one transaction, including across tabs. */
-async function update(id: number, next?: SavedVideo): Promise<SavedVideo | undefined> {
+/** Read the entries and change the index in one transaction, including across tabs. */
+async function updateIndex<T>(query: (store: IDBObjectStore) => IDBRequest<T>, write: (store: IDBObjectStore) => void): Promise<T> {
     const database = await openDatabase();
     try {
         return await new Promise((resolve, reject) => {
             const transaction = database.transaction(VIDEOS, 'readwrite');
             const store = transaction.objectStore(VIDEOS);
-            const previous = store.get(id);
-            previous.onsuccess = () => next ? store.put(next) : store.delete(id);
+            const previous = query(store);
+            previous.onsuccess = () => write(store);
             transaction.oncomplete = () => {
-                resolve(previous.result as SavedVideo | undefined);
+                resolve(previous.result);
                 libraryListeners.forEach((listener) => listener());
             };
             transaction.onabort = () => reject(transaction.error);
@@ -71,6 +71,13 @@ async function update(id: number, next?: SavedVideo): Promise<SavedVideo | undef
     } finally {
         database.close();
     }
+}
+
+function update(id: number, next?: SavedVideo) {
+    return updateIndex<SavedVideo | undefined>(
+        (store) => store.get(id),
+        (store) => { if (next) store.put(next); else store.delete(id); },
+    );
 }
 
 export function savedVideo(id: number) {
@@ -175,6 +182,12 @@ export async function deleteSavedVideo(id: number) {
     const folder = await directory();
     const previous = await update(id);
     if (previous) await removeFile(folder, previous.fileName);
+}
+
+export async function deleteAllSavedVideos() {
+    const folder = await directory();
+    const previous = await updateIndex<SavedVideo[]>((store) => store.getAll(), (store) => store.clear());
+    await Promise.all(previous.map((entry) => removeFile(folder, entry.fileName)));
 }
 
 export async function offlinePlayback(entry: SavedVideo) {
