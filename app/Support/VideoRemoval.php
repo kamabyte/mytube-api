@@ -3,7 +3,7 @@
 namespace App\Support;
 
 /**
- * Итог LibraryCleaner::removeVideo.
+ * Итог удаления или выгрузки видео.
  */
 final readonly class VideoRemoval
 {

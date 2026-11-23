@@ -9,7 +9,6 @@ use App\Support\HumanBytes;
 use App\Support\LibraryCleaner;
 use App\Support\MediaUnavailable;
 use App\Support\Toast;
-use App\Support\UnloadWouldRequeue;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -20,35 +19,27 @@ use Illuminate\Validation\ValidationException;
  */
 class VideoFileController extends Controller
 {
-    public function destroy(Request $request, Video $video, LibraryCleaner $cleaner, DeletePin $deletePin): RedirectResponse
+    public function destroy(Request $request, Video $catalogVideo, LibraryCleaner $cleaner, DeletePin $deletePin): RedirectResponse
     {
         $deletePin->authorize($request);
 
         try {
-            $removal = $cleaner->unloadVideo($video);
+            $removal = $cleaner->unloadVideo($catalogVideo);
         } catch (MediaUnavailable) {
-            Toast::error('Медиадиск недоступен — файл не удалён');
-
-            return back();
-        } catch (UnloadWouldRequeue) {
-            // Ошибкой формы, а не всплывашкой: диалог останется открытым и покажет её.
             throw ValidationException::withMessages([
-                'file' => 'Канал скачивается целиком — файл скачался бы снова. Переключите канал на «Скачивать только по запросу».',
+                'file' => 'Медиадиск недоступен. Попробуйте выгрузить видео позже.',
             ]);
         }
 
         if ($removal->hasLeftovers()) {
-            Toast::error(
-                'Видео вернулось в каталог, но файл удалить не удалось',
-                'Проверьте права на медиадиск — подробности в логах сервиса в Dokploy.',
-            );
-
-            return back();
+            throw ValidationException::withMessages([
+                'file' => 'Не удалось выгрузить все файлы видео. Проверьте права записи на медиадиск.',
+            ]);
         }
 
         $freed = $removal->freedBytes > 0 ? 'Освобождено '.HumanBytes::format($removal->freedBytes).'. ' : '';
 
-        Toast::success("Файл «{$video->name}» удалён", $freed.'Видео осталось в каталоге — его можно скачать снова.');
+        Toast::success("«{$catalogVideo->name}» выгружено", $freed.'Видео можно снова скачать вручную из каталога.');
 
         return back();
     }

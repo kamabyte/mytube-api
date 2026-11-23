@@ -204,39 +204,48 @@ class LibraryCleaner
     }
 
     /**
-     * Убирает только файл: видео остаётся в каталоге (с обложкой) и его можно
-     * попросить скачать снова. Для видео канала с автоскачиванием смысла нет —
-     * воркер тут же скачал бы его заново.
+     * Освобождает место, сохраняя видео с обложкой в каталоге. Скачать его
+     * снова можно по ручному запросу из любого источника.
      *
      * @throws MediaUnavailable
-     * @throws UnloadWouldRequeue
      */
     public function unloadVideo(Video $video): VideoRemoval
     {
-        if (! $this->isMediaDiskAvailable()) {
-            throw new MediaUnavailable(sprintf(
-                'The media disk (%s) is not available, the video file cannot be removed.',
-                config('filesystems.disks.media.root') ?: 'MEDIA_ROOT is not set',
-            ));
-        }
+        return DB::transaction(function () use ($video): VideoRemoval {
+            $video = Video::catalog()->lockForUpdate()->findOrFail($video->id);
 
-        if ($video->channels()->where('download_on_demand', false)->exists()) {
-            throw new UnloadWouldRequeue;
-        }
+            if (! $video->is_downloaded) {
+                return new VideoRemoval(freedBytes: 0, keptFiles: []);
+            }
 
-        [$freed, $kept] = $this->deleteMediaFiles($video);
+            if (! $this->isMediaDiskAvailable()) {
+                throw new MediaUnavailable('The media disk is not available, the video file cannot be removed.');
+            }
 
-        $video->forceFill([
-            'is_downloaded' => false,
-            'downloaded_at' => null,
-            'download_requested_at' => null,
-            'file_size' => null,
-        ])->save();
+            $attributes = [
+                'is_downloaded' => false,
+                'download_on_demand' => true,
+                'downloaded_at' => null,
+                'download_requested_at' => null,
+                'file_size' => null,
+            ];
+            $original = $video->only(array_keys($attributes));
+            $playablePath = VideoFile::path($video);
 
-        return new VideoRemoval(
-            freedBytes: $kept === [] ? $freed : 0,
-            keptFiles: $kept,
-        );
+            // Получаем блокировку записи перед удалением. До коммита воркер
+            // видит скачанное видео, после — видео с ручным режимом.
+            $video->forceFill($attributes)->save();
+            [$freed, $kept] = $this->deleteMediaFiles($video);
+
+            if (in_array($playablePath, $kept, true)) {
+                $video->forceFill($original)->save();
+            }
+
+            return new VideoRemoval(
+                freedBytes: $kept === [] ? $freed : 0,
+                keptFiles: $kept,
+            );
+        }, attempts: 3);
     }
 
     /**

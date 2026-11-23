@@ -94,6 +94,10 @@ class ChannelImporter
         // null — не трогать: повторное добавление не меняет режим скачивания.
         if ($downloadOnDemand !== null && ! $existingChannel?->sync_paused) {
             $attributes['download_on_demand'] = $downloadOnDemand;
+
+            if ($downloadOnDemand) {
+                $attributes['auto_download_from'] = null;
+            }
         }
 
         return Channel::updateOrCreate(['external_id' => $item->id], $attributes);
@@ -155,6 +159,10 @@ class ChannelImporter
 
         if ($downloadOnDemand !== null && ! $existingPlaylist?->sync_paused) {
             $attributes['download_on_demand'] = $downloadOnDemand;
+
+            if ($downloadOnDemand) {
+                $attributes['auto_download_from'] = null;
+            }
         }
 
         return Channel::updateOrCreate(['external_id' => $playlistId], $attributes);

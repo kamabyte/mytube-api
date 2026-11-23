@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UpdateVideoDownloadPolicyRequest;
 use App\Http\Resources\VideoResource;
 use App\Models\Channel;
 use App\Models\Scopes\DownloadedVideo;
@@ -36,6 +37,7 @@ class VideoController extends Controller
                 'created_at',
                 'published_at',
                 'downloaded_at',
+                'download_on_demand',
             )
             ->allowedFilters(
                 // Все видео канала или плейлиста, а не только те, где он основной.
@@ -78,10 +80,19 @@ class VideoController extends Controller
     public function show(Video $catalogVideo): VideoResource
     {
         $catalogVideo->load(['channel' => fn ($query) => $query
-            ->select('id', 'name', 'thumbnail', 'is_playlist', 'download_on_demand')
+            ->select('id', 'name', 'thumbnail', 'is_playlist', 'download_on_demand', 'auto_download_from', 'sync_paused')
             ->withCount(['videos', ...Channel::catalogCount()])]);
 
         return new VideoResource($catalogVideo);
+    }
+
+    public function update(UpdateVideoDownloadPolicyRequest $request, Video $catalogVideo): VideoResource
+    {
+        $catalogVideo->update(['download_on_demand' => $request->downloadOnDemand()]);
+
+        $video = Video::catalog()->withDownloadState()->findOrFail($catalogVideo->id);
+
+        return $this->show($video);
     }
 
     /**

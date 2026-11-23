@@ -22,9 +22,10 @@ Route::get('/videos/lookup', [VideoController::class, 'lookup'])->name('videos.l
 // {catalogVideo} — видео из каталога, скачанное или нет (привязка — в AppServiceProvider).
 Route::get('/watch/{catalogVideo}', [VideoController::class, 'show'])->name('watch');
 Route::get('/videos/{video}/offline', [VideoController::class, 'offline'])->name('videos.offline');
+Route::patch('/videos/{catalogVideo}', [VideoController::class, 'update'])->name('videos.update');
 // Удалить можно и нескачанное видео каталога — тогда оно просто скрывается навсегда.
 Route::delete('/videos/{catalogVideo}', [VideoController::class, 'destroy'])->name('videos.destroy');
-Route::delete('/videos/{video}/file', [VideoFileController::class, 'destroy'])->name('videos.file.destroy');
+Route::delete('/videos/{catalogVideo}/file', [VideoFileController::class, 'destroy'])->name('videos.file.destroy');
 Route::post('/videos/{catalogVideo}/download', [DownloadRequestController::class, 'store'])->name('videos.download.store');
 Route::delete('/videos/{catalogVideo}/download', [DownloadRequestController::class, 'destroy'])->name('videos.download.destroy');
 

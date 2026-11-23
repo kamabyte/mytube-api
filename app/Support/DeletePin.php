@@ -9,12 +9,12 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 
 /**
- * PIN на удаление каналов и видео из веб-клиента — от случайных нажатий
+ * PIN на удаление каналов и видео — от случайных нажатий
  * (дети у телевизора), а не от злоумышленника: авторизации в приложении нет.
  *
  * Хеш PIN лежит в таблице settings, а не в .env: .env перегенерируется
- * при provision. Задаётся командой mytube:delete-pin. Пока PIN не задан,
- * удалять из веба нельзя.
+ * при provision. Задаётся командой mytube:delete-pin. PIN нужен для
+ * удаления и выгрузки.
  *
  * После верного PIN сессия остаётся «разблокированной» UNLOCK_MINUTES —
  * чтобы не вводить его на каждое удаление подряд.
@@ -69,7 +69,9 @@ class DeletePin
      */
     public function authorize(Request $request): void
     {
-        if (! $this->isConfigured()) {
+        $hash = $this->hash();
+
+        if ($hash === null) {
             throw ValidationException::withMessages([
                 'pin' => 'PIN для удаления не задан. На сервере: php artisan mytube:delete-pin',
             ]);
@@ -89,9 +91,13 @@ class DeletePin
             ]);
         }
 
-        $pin = (string) $request->input('pin', '');
+        $pin = $request->input('pin', '');
 
-        if ($pin === '' || ! Hash::check($pin, $this->hash())) {
+        if (is_int($pin)) {
+            $pin = (string) $pin;
+        }
+
+        if (! is_string($pin) || ! self::isValidFormat($pin) || ! Hash::check($pin, $hash)) {
             RateLimiter::hit($limiterKey, self::DECAY_SECONDS);
 
             throw ValidationException::withMessages([
@@ -100,7 +106,10 @@ class DeletePin
         }
 
         RateLimiter::clear($limiterKey);
-        $request->session()->put(self::SESSION_KEY, now()->addMinutes(self::UNLOCK_MINUTES)->getTimestamp());
+
+        if ($request->hasSession()) {
+            $request->session()->put(self::SESSION_KEY, now()->addMinutes(self::UNLOCK_MINUTES)->getTimestamp());
+        }
     }
 
     private function hash(): ?string

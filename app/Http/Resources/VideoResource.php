@@ -58,6 +58,8 @@ class VideoResource extends JsonResource
                 : route('api.videos.stream', $this->resource)),
             'download_state' => $this->whenHas('is_downloaded', fn () => DownloadState::of($this->resource)),
             'download_requested_at' => $this->whenHas('download_requested_at', $this->download_requested_at),
+            'download_on_demand' => $this->whenHas('download_on_demand', $this->download_on_demand),
+            'auto_download' => $this->whenHas('auto_download', $this->auto_download),
             'created_at' => $this->whenHas('created_at', $this->created_at),
             'updated_at' => $this->whenHas('updated_at', $this->updated_at),
             'published_at' => $this->whenHas('published_at', $this->published_at),

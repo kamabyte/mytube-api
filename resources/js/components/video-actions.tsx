@@ -7,7 +7,13 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuPortal,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
     DropdownMenuSeparator,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { VideoDownloadItems } from '@/components/video-download-items';
@@ -32,6 +38,7 @@ export function VideoActions({ video, className, onChange }: {
     const state = video.download_state;
     const streamUrl = detail ? detail.stream_url : state === 'downloaded' ? `/api/videos/${video.id}/stream` : null;
     const canCancel = state === 'queued' && !!video.download_requested_at && !video.auto_download;
+    const downloadMode = video.download_on_demand === true ? 'on-demand' : video.download_on_demand === false ? 'auto' : 'channel';
     const size = detail?.file_size ? ` (${formatBytes(detail.file_size)})` : '';
 
     const request = (method: 'post' | 'delete', next: DownloadState) =>
@@ -44,6 +51,13 @@ export function VideoActions({ video, className, onChange }: {
             onFinish: () => setSending(false),
             onSuccess: () => onChange?.(next),
         });
+
+    const setDownloadMode = (mode: string) =>
+        router.patch(
+            `/videos/${video.id}`,
+            { download_on_demand: mode === 'channel' ? null : mode === 'on-demand' },
+            { preserveScroll: true, only: ['video', 'downloads'] },
+        );
 
     return (
         <>
@@ -81,15 +95,30 @@ export function VideoActions({ video, className, onChange }: {
                         </DropdownMenuItem>
                     )}
                     {streamUrl && (
-                        <DropdownMenuItem disabled={video.auto_download} onSelect={() => setDialog('file')} className="min-h-11">
+                        <DropdownMenuItem onSelect={() => setDialog('file')} className="min-h-11">
                             <FileX />
                             <span>
                                 Выгрузить с сервера
-                                <span className="block text-xs text-muted-foreground">
-                                    {video.auto_download ? 'Канал скачивается целиком — файл скачался бы снова' : 'Видео останется в каталоге'}
-                                </span>
+                                <span className="block text-xs text-muted-foreground">Видео останется в каталоге</span>
                             </span>
                         </DropdownMenuItem>
+                    )}
+                    {detail && state !== 'unavailable' && (
+                        <DropdownMenuSub>
+                            <DropdownMenuSubTrigger className="min-h-11 gap-2">
+                                <CloudDownload className="size-4 text-muted-foreground" />
+                                Скачивание на сервер
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuPortal>
+                                <DropdownMenuSubContent>
+                                    <DropdownMenuRadioGroup value={downloadMode} onValueChange={setDownloadMode}>
+                                        <DropdownMenuRadioItem value="channel">По настройкам канала</DropdownMenuRadioItem>
+                                        <DropdownMenuRadioItem value="on-demand">Только по запросу</DropdownMenuRadioItem>
+                                        <DropdownMenuRadioItem value="auto">Автоматически</DropdownMenuRadioItem>
+                                    </DropdownMenuRadioGroup>
+                                </DropdownMenuSubContent>
+                            </DropdownMenuPortal>
+                        </DropdownMenuSub>
                     )}
                     {(detail || state === 'available' || canCancel || streamUrl) && <DropdownMenuSeparator />}
                     <DropdownMenuItem variant="destructive" onSelect={() => setDialog('delete')} className="min-h-11">
@@ -112,7 +141,7 @@ export function VideoActions({ video, className, onChange }: {
                 }}
             >
                 <p>Файл «{video.name}»{size} будет удалён с сервера. Видео останется в каталоге с обложкой.</p>
-                <p>Чтобы посмотреть его, видео нужно будет скачать снова.</p>
+                <p>Для этого видео включится скачивание по запросу.</p>
             </DeleteDialog>
 
             <DeleteDialog

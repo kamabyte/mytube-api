@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateChannelRequest;
 use App\Http\Requests\Web\StoreChannelRequest;
-use App\Http\Requests\Web\UpdateChannelRequest;
 use App\Http\Resources\Web\ChannelCard;
 use App\Http\Resources\Web\VideoCard;
 use App\Models\Channel;
@@ -138,15 +138,14 @@ class ChannelController extends Controller
 
     public function update(UpdateChannelRequest $request, Channel $channel): RedirectResponse
     {
-        $channel->update([
-            'download_on_demand' => $request->downloadOnDemand(),
-            'sync_paused' => $request->syncPaused(),
-        ]);
+        $channel->setDownloadMode($request->downloadOnDemand(), $request->syncPaused(), $request->downloadNewOnly());
 
         if ($channel->sync_paused) {
             Toast::success("«{$channel->name}» на паузе", 'Обновление каталога и автоматическое скачивание приостановлены.');
         } elseif ($channel->download_on_demand) {
             Toast::success("«{$channel->name}» — только по запросу", 'Скачанное остаётся, новые видео попадут в каталог.');
+        } elseif ($channel->auto_download_from) {
+            Toast::success("«{$channel->name}» — скачиваются только новые", 'Автоскачивание действует для видео, опубликованных с момента переключения.');
         } else {
             $queued = $channel->videos()->withoutGlobalScopes()->awaitingDownload()->count();
 

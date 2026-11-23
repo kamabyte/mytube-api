@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Closure;
 use Database\Factories\ChannelFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -24,8 +25,31 @@ class Channel extends Model
         'parse_latest' => 'boolean',
         'is_playlist' => 'boolean',
         'download_on_demand' => 'boolean',
+        'auto_download_from' => 'datetime',
         'sync_paused' => 'boolean',
     ];
+
+    public function setDownloadMode(bool $onDemand, bool $paused, bool $newOnly): void
+    {
+        $onDemand = $onDemand || $paused;
+        $newOnly = $newOnly && ! $onDemand;
+        $attributes = [
+            'download_on_demand' => $onDemand,
+            'sync_paused' => $paused,
+            'auto_download_from' => $newOnly ? now('UTC') : null,
+        ];
+
+        if ($newOnly) {
+            $attributes['parse_latest'] = true;
+        }
+
+        // Повторная отправка запроса не сдвигает границу автоскачивания.
+        $this->newQuery()->whereKey($this->id)
+            ->when($newOnly, fn (Builder $query) => $query->whereNull('auto_download_from'))
+            ->update($attributes);
+
+        $this->refresh();
+    }
 
     public function getThumbnailAttribute(?string $value): ?string
     {

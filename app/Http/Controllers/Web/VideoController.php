@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateVideoDownloadPolicyRequest;
 use App\Http\Resources\Web\ChannelCard;
 use App\Http\Resources\Web\VideoCard;
 use App\Http\Resources\Web\VideoDetail;
@@ -92,6 +93,13 @@ class VideoController extends Controller
         abort_if(VideoFile::path($video) === null, 404);
 
         return response()->json((new VideoDetail($video->load('channel')))->resolve());
+    }
+
+    public function update(UpdateVideoDownloadPolicyRequest $request, Video $catalogVideo): RedirectResponse
+    {
+        $catalogVideo->update(['download_on_demand' => $request->downloadOnDemand()]);
+
+        return back();
     }
 
     /**

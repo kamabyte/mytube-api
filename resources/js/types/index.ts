@@ -5,6 +5,7 @@ export interface ChannelSummary {
     is_playlist: boolean;
     /** Каталог без автоскачивания: видео скачиваются, только когда их попросят. */
     download_on_demand: boolean;
+    auto_download_from?: string | null;
     sync_paused?: boolean;
     videos_count?: number;
     queued_count?: number;
@@ -28,7 +29,9 @@ export interface Video {
     download_state: DownloadState;
     /** Запросили скачать — только свой запрос можно отменить. */
     download_requested_at: string | null;
-    /** Один из источников качает всё сам: в очереди и без запроса, файл не убрать. */
+    /** null — использовать настройки источников. */
+    download_on_demand: boolean | null;
+    /** Видео может попасть в очередь без ручного запроса. */
     auto_download: boolean;
     channel?: ChannelSummary;
 }

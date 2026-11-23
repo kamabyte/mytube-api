@@ -21,18 +21,21 @@ class DownloadController extends Controller
     {
         $run = VideoDownloadRun::query()->running()->latest('started_at')->first();
         $current = $run
-            ? Video::catalog()->awaitingDownload()->withDownloadState()->with('channel')->find($run->video_id)
+            ? Video::catalog()->where('is_downloaded', false)->where('is_unavailable', false)
+                ->withDownloadState()->with('channel')->find($run->video_id)
             : null;
 
-        $queue = Video::catalog()
+        $pending = Video::catalog()
             ->awaitingDownload()
+            ->when($current, fn ($query) => $query->whereKeyNot($current->id));
+
+        $queuedCount = (clone $pending)->count();
+        $queue = $pending
             ->withDownloadState()
             ->with('channel')
-            ->when($current, fn ($query) => $query->whereKeyNot($current->id))
             ->inDownloadOrder()
             ->limit(self::QUEUE_LIMIT)
             ->get();
-        $queuedCount = Video::catalog()->awaitingDownload()->count() - ($current ? 1 : 0);
 
         return response()->json([
             'current' => $current ? (new VideoCard($current))->resolve() : null,

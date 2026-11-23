@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { ExternalLink, Hand, ListVideo, Pause, Play, Video as VideoIcon } from 'lucide-react';
+import { CalendarPlus, ExternalLink, Hand, ListVideo, Pause, Play, Video as VideoIcon } from 'lucide-react';
 import { ChannelAvatar } from '@/components/channel-avatar';
 import { availableCount, ChannelMenu } from '@/components/channel-menu';
 import { Button } from '@/components/ui/button';
@@ -67,6 +67,12 @@ export default function Channel({ channel, youtubeUrl, sort, videos }: Props) {
                                 <span className="inline-flex items-center gap-1 rounded-full bg-background/60 px-2.5 py-0.5 text-xs font-medium backdrop-blur">
                                     <Hand className="size-3.5" />
                                     По запросу
+                                </span>
+                            )}
+                            {channel.auto_download_from && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-background/60 px-2.5 py-0.5 text-xs font-medium backdrop-blur">
+                                    <CalendarPlus className="size-3.5" />
+                                    Скачиваются только новые
                                 </span>
                             )}
                         </div>

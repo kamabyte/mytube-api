@@ -37,7 +37,7 @@ class LibraryStatistics
             ->where('is_downloaded', false)
             ->where('is_unavailable', false)
             ->whereNull('download_requested_at')
-            ->whereDoesntHave('channels', fn (Builder $query) => $query->where('download_on_demand', false))
+            ->whereNot(fn (Builder $query) => $query->automaticallyDownloadable())
             ->count();
 
         $totalVideoSizeBytes = $videoStats->total_video_size;

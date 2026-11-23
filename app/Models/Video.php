@@ -29,6 +29,7 @@ class Video extends Model
         'published_at' => 'datetime',
         'downloaded_at' => 'datetime',
         'download_requested_at' => 'datetime',
+        'download_on_demand' => 'boolean',
         'removed_at' => 'datetime',
     ];
 
@@ -57,8 +58,7 @@ class Video extends Model
 
     /**
      * Ждёт воркера. То же условие, по которому воркер выбирает задания
-     * (mytube-workers, DbJobSource): попросили или хоть один источник
-     * видео качает всё сам.
+     * (mytube-workers, DbJobSource): ручной запрос или разрешённое автоскачивание.
      *
      * @param  Builder<static>  $query
      */
@@ -66,9 +66,15 @@ class Video extends Model
     {
         $query->where('videos.is_downloaded', false)
             ->where('videos.is_unavailable', false)
+            ->whereNull('videos.removed_at')
             ->where(fn (Builder $query) => $query
                 ->whereNotNull('videos.download_requested_at')
-                ->orWhereHas('channels', fn (Builder $query) => $query->where('download_on_demand', false)));
+                ->orWhere(fn (Builder $query) => $query->automaticallyDownloadable()));
+    }
+
+    public function scopeAutomaticallyDownloadable(Builder $query): void
+    {
+        $query->whereHas('channels', $this->filterAutomaticDownloadSources(...));
     }
 
     /**
@@ -80,9 +86,24 @@ class Video extends Model
     public function scopeWithDownloadState(Builder $query): void
     {
         $query->withExists([
-            'channels as auto_download' => fn (Builder $query) => $query->where('download_on_demand', false),
+            'channels as auto_download' => $this->filterAutomaticDownloadSources(...),
             'downloadRuns as downloading' => fn (Builder $query) => $query->running(),
         ]);
+    }
+
+    private function filterAutomaticDownloadSources(Builder $query): void
+    {
+        // true — только ручной запрос, false — автоскачивание из активного источника,
+        // null — наследуем режим каждого канала или плейлиста.
+        $query->where('channels.sync_paused', false)
+            ->where(fn (Builder $query) => $query
+                ->where('videos.download_on_demand', false)
+                ->orWhere(fn (Builder $query) => $query
+                    ->whereNull('videos.download_on_demand')
+                    ->where('channels.download_on_demand', false)
+                    ->where(fn (Builder $query) => $query
+                        ->whereNull('channels.auto_download_from')
+                        ->orWhereColumn('videos.published_at', '>=', 'channels.auto_download_from'))));
     }
 
     /**

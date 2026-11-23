@@ -94,6 +94,7 @@ function snapshot(video: Video): Video {
         // Прогресс бывает только у того, что играл плеер, — значит, скачано.
         download_state: 'downloaded',
         download_requested_at: null,
+        download_on_demand: video.download_on_demand ?? null,
         auto_download: video.auto_download ?? false,
         channel: channel
             ? {

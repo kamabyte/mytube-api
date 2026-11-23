@@ -90,20 +90,47 @@ MyTube — самостоятельно размещаемая видеотек�
 Все маршруты — под префиксом `/api`, ответы и ошибки (404, 422) всегда в JSON.
 Проверка живости — `GET /up`.
 
-| Метод и путь | Что возвращает |
+| Метод и путь | Назначение |
 |---|---|
 | `GET /api/home` | Главная: `featured`, `latest`, `recently_added`, `channels` (полки с ограниченным размером) |
 | `GET /api/videos` | Список видео (пагинация, фильтры, сортировка) |
 | `GET /api/videos/{id}` | Видео с каналом |
+| `PATCH /api/videos/{id}` | Установить режим скачивания отдельного видео |
+| `POST /api/videos/{id}/download` | Поставить видео в очередь вручную |
+| `DELETE /api/videos/{id}/download` | Снять ручную заявку |
+| `DELETE /api/videos/{id}/file` | Выгрузить видео из медиатеки |
 | `GET /api/videos/{id}/up-next?limit=` | Очередь «Далее» (`limit` 1–30) |
 | `GET /api/videos/{id}/stream` | Файл видео (`video_url` в ответах указывает сюда) |
 | `GET /api/videos/{id}/subtitles/{track}` | Дорожка субтитров в WebVTT |
 | `GET /api/channels` | Список каналов и плейлистов |
 | `GET /api/channels/{id}` | Канал с `videos_count` |
+| `PATCH /api/channels/{id}` | Переключить режим скачивания канала |
 | `GET /api/search?q=` | Видео (с пагинацией) и до 12 каналов в поле `channels` |
 | `GET /api/statistics` | Сводка: число видео и каналов, объём, длительность, видео в очереди |
 | `GET /api/statistics/channels` | Объём и число видео по каналам |
 | `GET /api/statistics/daily` | Скачано по дням за последние 14 дней |
+
+### Режимы скачивания
+
+`PATCH /api/channels/{id}` принимает `{"download_on_demand":true}` для каталога
+по запросу, `{"download_on_demand":false}` для всего каталога или
+`{"download_on_demand":false,"download_new_only":true}` для видео, опубликованных
+с момента переключения. В последнем режиме ответ содержит границу
+`auto_download_from`. `sync_paused:true` приостанавливает обновление и
+автоскачивание через этот источник.
+
+`PATCH /api/videos/{id}` принимает поле `download_on_demand`. Значение `true`
+разрешает скачивать видео только по ручному запросу, `false` ставит видео
+в очередь автоматически при наличии активного источника, `null` возвращает
+настройки источников. Поле `auto_download` в ответе показывает итоговое правило
+для видео.
+
+`DELETE /api/videos/{id}/file` принимает `{"pin":"…"}`. Видео остаётся в каталоге
+с обложкой и режимом скачивания по запросу. `POST /api/videos/{id}/download`
+ставит его в очередь снова. `GET /api/videos?filter[catalog]=1` включает
+нескачанные видео каталога.
+
+### Списки
 
 Списки построены на [spatie/laravel-query-builder](https://github.com/spatie/laravel-query-builder)
 и [spatie/laravel-json-api-paginate](https://github.com/spatie/laravel-json-api-paginate):

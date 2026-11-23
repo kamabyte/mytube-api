@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Hand, ListVideo, Pause, Tv } from 'lucide-react';
+import { CalendarPlus, Hand, ListVideo, Pause, Tv } from 'lucide-react';
 import { AddChannelDialog } from '@/components/add-channel-dialog';
 import { ChannelAvatar } from '@/components/channel-avatar';
 import { ChannelMenu } from '@/components/channel-menu';
@@ -59,6 +59,12 @@ export default function Channels({ channels }: { channels: (ChannelSummary & { y
                                             <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
                                                 {channel.sync_paused ? <Pause className="size-3" /> : <Hand className="size-3" />}
                                                 {channel.sync_paused ? 'На паузе' : 'По запросу'}
+                                            </span>
+                                        )}
+                                        {channel.auto_download_from && (
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+                                                <CalendarPlus className="size-3" />
+                                                Только новые
                                             </span>
                                         )}
                                         {channel.is_playlist && (

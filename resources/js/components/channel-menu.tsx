@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { CloudDownload, Ellipsis, ExternalLink, Hand, Pause, Trash2 } from 'lucide-react';
+import { CalendarPlus, CloudDownload, Ellipsis, ExternalLink, Hand, Pause, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { DeleteDialog } from '@/components/delete-dialog';
 import { Button } from '@/components/ui/button';
@@ -17,18 +17,21 @@ export function ChannelMenu({ channel, cardYoutubeUrl }: { channel: ChannelSumma
     const [updating, setUpdating] = useState(false);
     const onCard = cardYoutubeUrl !== undefined;
     const kind = channel.is_playlist ? 'плейлист' : 'канал';
-    const available = availableCount(channel);
 
     // reset запрашивает свежую ленту и заменяет ранее загруженные страницы.
-    const setMode = (mode: 'auto' | 'on-demand' | 'paused') =>
+    const setMode = (mode: 'auto' | 'new' | 'on-demand' | 'paused') =>
         router.patch(
             `/channels/${channel.id}`,
-            { download_on_demand: mode !== 'auto', sync_paused: mode === 'paused' },
+            {
+                download_on_demand: mode === 'on-demand' || mode === 'paused',
+                download_new_only: mode === 'new',
+                sync_paused: mode === 'paused',
+            },
             {
                 preserveScroll: true,
                 ...(onCard
                     ? { only: ['channels', 'downloads'] }
-                    : { only: ['channel', 'downloads'], reset: ['videos'] }),
+                    : { only: ['channel', 'downloads', 'videos'], reset: ['videos'] }),
                 onStart: () => setUpdating(true),
                 onFinish: () => setUpdating(false),
             },
@@ -57,11 +60,16 @@ export function ChannelMenu({ channel, cardYoutubeUrl }: { channel: ChannelSumma
                             </a>
                         </DropdownMenuItem>
                     )}
-                    {channel.download_on_demand && (
+                    {(channel.download_on_demand || channel.auto_download_from) && (
                         <DropdownMenuItem onSelect={() => setMode('auto')}>
                             <CloudDownload />
-                            <span className="flex-1">Скачивать всё</span>
-                            {available > 0 && <span className="text-xs text-muted-foreground">+{available} в очередь</span>}
+                            Скачивать всё
+                        </DropdownMenuItem>
+                    )}
+                    {!channel.auto_download_from && (
+                        <DropdownMenuItem onSelect={() => setMode('new')}>
+                            <CalendarPlus />
+                            Скачивать только новые
                         </DropdownMenuItem>
                     )}
                     {(!channel.download_on_demand || channel.sync_paused) && (

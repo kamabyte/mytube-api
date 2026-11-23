@@ -344,6 +344,7 @@ it('removes only the file: the video stays in the catalog and can be downloaded 
         ->and($video->is_unavailable)->toBeFalse()
         ->and($video->removed_at)->toBeNull()
         ->and($video->download_requested_at)->toBeNull()
+        ->and($video->download_on_demand)->toBeTrue()
         ->and($video->file_size)->toBeNull()
         // Обложка остаётся — видео по-прежнему в каталоге.
         ->and($video->getRawOriginal('thumbnail'))->toBe('thumbnails/videos/unload-1.jpg');
@@ -354,16 +355,79 @@ it('removes only the file: the video stays in the catalog and can be downloaded 
     $this->get("/watch/{$video->id}")->assertInertia(fn (Assert $page) => $page->where('video.download_state', 'available'));
 });
 
-it('refuses to remove the file of a video that its channel would download again', function (): void {
+it('unloads a video from automatic sources and downloads it again only on request', function (): void {
     $channel = Channel::query()->create(['external_id' => 'UC-auto', 'name' => 'Auto']);
-    $video = storedVideo($channel, 'auto-1');
+    $playlist = Channel::query()->create(['external_id' => 'PL-auto', 'name' => 'Playlist', 'is_playlist' => true]);
+    $video = storedVideo($channel, 'auto-1', ['download_requested_at' => now()->subHour()]);
+    $video->channels()->attach($playlist);
+    $other = storedVideo($channel, 'auto-2', ['is_downloaded' => false]);
     File::ensureDirectoryExists($this->mediaRoot."/videos/{$channel->id}");
     File::put($this->mediaRoot."/videos/{$channel->id}/{$video->id}.mp4", 'video-bytes');
 
-    $this->delete("/videos/{$video->id}/file", ['pin' => '2468'])
-        ->assertRedirect()
-        ->assertSessionHasErrors('file');
+    $this->deleteJson("/api/videos/{$video->id}/file")
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('pin');
 
-    expect(File::exists($this->mediaRoot."/videos/{$channel->id}/{$video->id}.mp4"))->toBeTrue()
+    $this->deleteJson("/api/videos/{$video->id}/file", ['pin' => '2468'])
+        ->assertOk()
+        ->assertJsonPath('data.download_state', 'available')
+        ->assertJsonPath('data.download_requested_at', null)
+        ->assertJsonPath('data.download_on_demand', true)
+        ->assertJsonPath('data.auto_download', false)
+        ->assertJsonPath('data.video_url', null);
+
+    $this->getJson("/api/videos/{$video->id}")->assertJsonPath('data.download_state', 'available');
+    $this->getJson("/api/videos/{$video->id}/stream")->assertNotFound();
+    $this->getJson('/api/statistics')->assertJsonPath('videos_available', 1);
+
+    expect(File::exists($this->mediaRoot."/videos/{$channel->id}/{$video->id}.mp4"))->toBeFalse()
+        ->and($video->channels()->count())->toBe(2)
+        ->and(Video::catalog()->awaitingDownload()->pluck('id')->all())->toBe([$other->id]);
+
+    $this->postJson("/api/videos/{$video->id}/download")
+        ->assertOk()
+        ->assertJsonPath('data.download_state', 'queued');
+
+    // Повтор выгрузки уже отсутствующего файла не отменяет новый ручной запрос.
+    $this->deleteJson("/api/videos/{$video->id}/file", ['pin' => '2468'])
+        ->assertOk()
+        ->assertJsonPath('data.download_state', 'queued');
+
+    // И следующий цикл выгрузки сотрёт заявку от предыдущего скачивания.
+    $video->refresh()->update(['is_downloaded' => true, 'file_size' => 11, 'downloaded_at' => now()]);
+    File::put($this->mediaRoot."/videos/{$channel->id}/{$video->id}.mp4", 'video-bytes');
+    $this->deleteJson("/api/videos/{$video->id}/file", ['pin' => '2468'])
+        ->assertOk()
+        ->assertJsonPath('data.download_state', 'available');
+
+    expect(Video::catalog()->awaitingDownload()->pluck('id')->all())->toBe([$other->id]);
+});
+
+it('keeps a downloaded video when the media disk is unavailable', function (): void {
+    $channel = Channel::query()->create(['external_id' => 'UC-no-disk', 'name' => 'No disk']);
+    $video = storedVideo($channel, 'no-disk-1');
+    config(['filesystems.disks.media.root' => $this->mediaRoot.'/missing']);
+
+    $this->deleteJson("/api/videos/{$video->id}/file", ['pin' => '2468'])->assertServiceUnavailable();
+
+    expect($video->fresh()->download_on_demand)->toBeNull()
+        ->and($video->fresh()->is_downloaded)->toBeTrue();
+});
+
+it('keeps playback available when the video file cannot be removed', function (): void {
+    $channel = Channel::query()->create(['external_id' => 'UC-read-only', 'name' => 'Read only']);
+    $video = storedVideo($channel, 'read-only-1');
+    $file = "videos/{$channel->id}/{$video->id}.mp4";
+    $media = Storage::disk('media');
+    $media->put($file, 'video-bytes');
+
+    $readOnlyMedia = Mockery::mock($media)->makePartial();
+    $readOnlyMedia->shouldReceive('delete')->once()->with([$file])->andReturnFalse();
+    Storage::set('media', $readOnlyMedia);
+
+    $this->deleteJson("/api/videos/{$video->id}/file", ['pin' => '2468'])->assertInternalServerError();
+
+    expect($media->exists($file))->toBeTrue()
+        ->and($video->fresh()->download_on_demand)->toBeNull()
         ->and($video->fresh()->is_downloaded)->toBeTrue();
 });

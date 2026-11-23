@@ -7,6 +7,7 @@ use App\Http\Controllers\Internal\VideoDownloadController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\VideoController;
+use App\Http\Controllers\VideoFileController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -22,9 +23,12 @@ Route::name('api.')->group(function (): void {
     Route::get('/statistics/daily', [StatisticsController::class, 'daily'])->name('statistics.daily');
     Route::get('/channels', [ChannelController::class, 'index'])->name('channels.index');
     Route::get('/channels/{channel}', [ChannelController::class, 'show'])->name('channels.show');
+    Route::patch('/channels/{channel}', [ChannelController::class, 'update'])->name('channels.update');
     Route::get('/videos', [VideoController::class, 'index'])->name('videos.index');
     // {catalogVideo} — и нескачанные видео каталога (их статус клиент переспрашивает тут).
     Route::get('/videos/{catalogVideo}', [VideoController::class, 'show'])->name('videos.show');
+    Route::patch('/videos/{catalogVideo}', [VideoController::class, 'update'])->name('videos.update');
+    Route::delete('/videos/{catalogVideo}/file', [VideoFileController::class, 'destroy'])->name('videos.file.destroy');
     Route::post('/videos/{catalogVideo}/download', [DownloadRequestController::class, 'store'])->name('videos.download.store');
     Route::delete('/videos/{catalogVideo}/download', [DownloadRequestController::class, 'destroy'])->name('videos.download.destroy');
     Route::get('/videos/{video}/up-next', [VideoController::class, 'upNext'])->name('videos.up-next');

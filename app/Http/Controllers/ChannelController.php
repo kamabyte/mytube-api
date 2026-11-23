@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UpdateChannelRequest;
 use App\Http\Resources\ChannelResource;
 use App\Models\Channel;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -21,6 +22,8 @@ class ChannelController extends Controller
                 'thumbnail',
                 'is_playlist',
                 'download_on_demand',
+                'auto_download_from',
+                'sync_paused',
                 'created_at',
                 'updated_at',
                 'last_synced_at',
@@ -73,5 +76,12 @@ class ChannelController extends Controller
         $channel->loadCount(['videos', ...Channel::catalogCount()]);
 
         return new ChannelResource($channel);
+    }
+
+    public function update(UpdateChannelRequest $request, Channel $channel): ChannelResource
+    {
+        $channel->setDownloadMode($request->downloadOnDemand(), $request->syncPaused(), $request->downloadNewOnly());
+
+        return $this->show($channel);
     }
 }

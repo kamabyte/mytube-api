@@ -154,6 +154,101 @@ it('switches a channel between on-demand and downloading everything', function (
     $this->patch("/channels/{$channel->id}", [])->assertSessionHasErrors('download_on_demand');
 });
 
+it('starts automatic downloads from the time a channel is switched to new videos only', function (): void {
+    $cutoff = now('UTC')->startOfSecond();
+    $this->travelTo($cutoff);
+    $channel = onDemandChannel('from-now', attributes: ['parse_latest' => false]);
+    $old = catalogVideo($channel, 'old');
+    $requested = catalogVideo($channel, 'requested', ['download_requested_at' => $cutoff]);
+    $saved = catalogVideo($channel, 'saved', ['is_downloaded' => true]);
+    $channel->update(['last_synced_at' => $cutoff->copy()->subDay()]);
+
+    $settings = ['download_on_demand' => false, 'download_new_only' => true];
+    $this->from("/channels/{$channel->id}")->patch("/channels/{$channel->id}", $settings)
+        ->assertRedirect("/channels/{$channel->id}")
+        ->assertInertiaFlash('toast.message', "«{$channel->name}» — скачиваются только новые");
+
+    $atCutoff = catalogVideo($channel, 'at-cutoff', ['published_at' => $cutoff]);
+    $this->travel(5)->minutes();
+    $lateDiscovery = catalogVideo($channel, 'late-discovery', ['published_at' => $cutoff->copy()->subSecond()]);
+    $recent = catalogVideo($channel, 'recent', ['published_at' => now()]);
+    $unknownDate = catalogVideo($channel, 'unknown-date', ['published_at' => null]);
+
+    // Повтор запроса оставляет исходную дату. Курсор парсера живёт отдельно.
+    $this->patchJson("/api/channels/{$channel->id}", $settings)
+        ->assertOk()
+        ->assertJsonPath('data.auto_download_from', $cutoff->toJSON())
+        ->assertJsonPath('data.download_on_demand', false);
+
+    expect($channel->fresh()->parse_latest)->toBeTrue()
+        ->and($channel->fresh()->last_synced_at->equalTo($cutoff->copy()->subDay()))->toBeTrue()
+        ->and($saved->fresh()->is_downloaded)->toBeTrue();
+
+    $this->getJson('/downloads')
+        ->assertJsonPath('queue.*.id', [$requested->id, $atCutoff->id, $recent->id])
+        ->assertJsonPath('queued_count', 3);
+    $this->getJson('/api/statistics')->assertJsonPath('videos_available', 3);
+    $this->get("/channels/{$channel->id}")->assertInertia(fn (Assert $page) => $page
+        ->where('channel.queued_count', 3)
+        ->where('channel.auto_download_from', $cutoff->toJSON()));
+
+    foreach ([$old, $lateDiscovery, $unknownDate] as $video) {
+        $this->getJson("/api/videos/{$video->id}")
+            ->assertJsonPath('data.download_state', 'available')
+            ->assertJsonPath('data.auto_download', false);
+    }
+
+    // Другой источник по-прежнему может скачать старое видео.
+    $auto = onDemandChannel('all', onDemand: false);
+    $auto->videos()->attach($old);
+    $this->getJson("/api/videos/{$old->id}")->assertJsonPath('data.download_state', 'queued');
+
+    $this->patchJson("/api/channels/{$channel->id}", ['download_on_demand' => false])
+        ->assertOk()
+        ->assertJsonPath('data.auto_download_from', null);
+    expect(Video::catalog()->awaitingDownload()->count())->toBe(6);
+});
+
+it('overrides the mode of one video and keeps an in-progress download visible', function (): void {
+    $channel = onDemandChannel('override');
+    $video = catalogVideo($channel, 'override-1');
+    $url = "/api/videos/{$video->id}";
+
+    $this->patchJson($url, [])->assertJsonValidationErrors('download_on_demand');
+    $this->patchJson($url, ['download_on_demand' => false])
+        ->assertOk()
+        ->assertJsonPath('data.download_on_demand', false)
+        ->assertJsonPath('data.download_state', 'queued');
+
+    $run = VideoDownloadRun::query()->create(['video_id' => $video->id, 'started_at' => now(), 'status' => 'running']);
+    $this->patchJson($url, ['download_on_demand' => true])
+        ->assertOk()
+        ->assertJsonPath('data.download_state', 'downloading')
+        ->assertJsonPath('data.auto_download', false);
+    $this->getJson('/downloads')
+        ->assertJsonPath('current.id', $video->id)
+        ->assertJsonPath('queued_count', 0);
+    $run->update(['status' => 'ok', 'finished_at' => now()]);
+
+    $this->postJson("{$url}/download")
+        ->assertOk()
+        ->assertJsonPath('data.download_state', 'queued');
+    $this->deleteJson("{$url}/download")->assertJsonPath('data.download_state', 'available');
+
+    $this->patchJson($url, ['download_on_demand' => null])
+        ->assertOk()
+        ->assertJsonPath('data.download_on_demand', null)
+        ->assertJsonPath('data.download_state', 'available');
+
+    $this->from("/watch/{$video->id}")->patch("/videos/{$video->id}", ['download_on_demand' => false])
+        ->assertRedirect("/watch/{$video->id}");
+    $this->getJson($url)->assertJsonPath('data.download_state', 'queued');
+
+    $this->patchJson("/api/channels/{$channel->id}", ['download_on_demand' => true, 'sync_paused' => true])->assertOk();
+    $this->getJson($url)->assertJsonPath('data.download_state', 'available');
+    $this->postJson("{$url}/download")->assertJsonPath('data.download_state', 'queued');
+});
+
 it('pauses channel imports and automatic downloads while keeping the library and manual requests', function (): void {
     $channel = onDemandChannel('paused', onDemand: false, attributes: ['parse_popular' => true]);
     $downloaded = catalogVideo($channel, 'paused-downloaded', ['is_downloaded' => true]);

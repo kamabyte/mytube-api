@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Requests\Web;
+namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -10,6 +10,7 @@ class UpdateChannelRequest extends FormRequest
     {
         return [
             'download_on_demand' => ['required', 'boolean'],
+            'download_new_only' => ['sometimes', 'boolean'],
             'sync_paused' => ['sometimes', 'boolean'],
         ];
     }
@@ -21,6 +22,11 @@ class UpdateChannelRequest extends FormRequest
 
     public function downloadOnDemand(): bool
     {
-        return $this->syncPaused() || $this->boolean('download_on_demand');
+        return $this->boolean('download_on_demand');
+    }
+
+    public function downloadNewOnly(): bool
+    {
+        return $this->boolean('download_new_only');
     }
 }
