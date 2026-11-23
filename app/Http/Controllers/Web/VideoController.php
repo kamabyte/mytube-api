@@ -14,6 +14,7 @@ use App\Support\LibraryCleaner;
 use App\Support\MediaUnavailable;
 use App\Support\Toast;
 use App\Support\UpNext;
+use App\Support\VideoFile;
 use App\Support\VideoSort;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -70,7 +71,7 @@ class VideoController extends Controller
     }
 
     /**
-     * Скачанное видео — с плеером, из каталога — с кнопкой загрузки.
+     * Скачанное видео — с плеером, из каталога — со статусом скачивания.
      */
     public function show(Video $catalogVideo): Response
     {
@@ -84,6 +85,13 @@ class VideoController extends Controller
             'channel' => (new ChannelCard($video->channel))->resolve(),
             'upNext' => VideoCard::collection($upNext)->resolve(),
         ]);
+    }
+
+    public function offline(Video $video): JsonResponse
+    {
+        abort_if(VideoFile::path($video) === null, 404);
+
+        return response()->json((new VideoDetail($video->load('channel')))->resolve());
     }
 
     /**

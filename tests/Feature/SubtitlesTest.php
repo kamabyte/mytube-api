@@ -76,6 +76,22 @@ it('shows no subtitles when ffprobe fails', function (): void {
         ->assertInertia(fn (AssertableInertia $page) => $page->has('video.subtitles', 0));
 });
 
+it('provides video details and subtitle tracks for saving from a list', function (): void {
+    Process::fake(['*ffprobe*' => Process::result($this->ffprobe)]);
+
+    $route = "/videos/{$this->video->id}/offline";
+    $this->getJson($route)
+        ->assertOk()
+        ->assertJsonPath('name', 'Subtitled')
+        ->assertJsonPath('channel.name', 'Channel')
+        ->assertJsonPath('stream_url', "/api/videos/{$this->video->id}/stream")
+        ->assertJsonCount(2, 'subtitles')
+        ->assertJsonPath('subtitles.1.language', 'rus');
+
+    $this->video->update(['is_downloaded' => false]);
+    $this->getJson($route)->assertNotFound();
+});
+
 it('extracts a track to WebVTT once and serves it', function (): void {
     Process::fake([
         '*ffprobe*' => Process::result($this->ffprobe),

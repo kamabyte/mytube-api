@@ -21,6 +21,7 @@ Route::get('/videos', [VideoController::class, 'index'])->name('videos.index');
 Route::get('/videos/lookup', [VideoController::class, 'lookup'])->name('videos.lookup');
 // {catalogVideo} — видео из каталога, скачанное или нет (привязка — в AppServiceProvider).
 Route::get('/watch/{catalogVideo}', [VideoController::class, 'show'])->name('watch');
+Route::get('/videos/{video}/offline', [VideoController::class, 'offline'])->name('videos.offline');
 // Удалить можно и нескачанное видео каталога — тогда оно просто скрывается навсегда.
 Route::delete('/videos/{catalogVideo}', [VideoController::class, 'destroy'])->name('videos.destroy');
 Route::delete('/videos/{video}/file', [VideoFileController::class, 'destroy'])->name('videos.file.destroy');
@@ -35,7 +36,7 @@ Route::delete('/channels/{channel}', [ChannelController::class, 'destroy'])->nam
 
 Route::get('/search', SearchController::class)->name('search');
 
-// Панель «Загрузки» в шапке (JSON).
+// Очередь скачивания на сервер в «Статистике» (JSON).
 Route::get('/downloads', [DownloadController::class, 'index'])->name('downloads.index');
 
 // Колокольчик в шапке (JSON для выпадающей панели).

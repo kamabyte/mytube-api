@@ -228,21 +228,15 @@ export function DownloadsMenu() {
         >
             <PopoverTrigger asChild>
                 <Button
-                    variant="ghost"
-                    size="icon"
-                    className="relative size-11 rounded-full md:size-9"
-                    aria-label={
-                        queued ? `Загрузки: ${queued} в очереди` : "Загрузки"
-                    }
+                    variant="outline"
+                    className="min-h-11 rounded-full"
                 >
                     <ArrowDownToLine
-                        className={cn("size-[18px]", active && "text-brand")}
+                        className={cn("size-[18px]", active && "animate-pulse text-brand")}
                     />
-                    {active && (
-                        <span className="absolute bottom-1.5 left-1/2 h-0.5 w-3 -translate-x-1/2 animate-pulse rounded-full bg-brand" />
-                    )}
+                    Очередь сервера
                     {queued > 0 && (
-                        <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] leading-none font-bold text-background tabular-nums">
+                        <span className="grid h-5 min-w-5 place-items-center rounded-full bg-muted px-1 text-xs font-semibold tabular-nums">
                             {queued > 99 ? "99+" : queued}
                         </span>
                     )}
@@ -254,11 +248,11 @@ export function DownloadsMenu() {
             >
                 <div className="flex items-baseline justify-between gap-2 border-b border-border/60 px-4 py-3">
                     <span className="font-display text-base font-semibold">
-                        Загрузки
+                        Скачивание на сервер
                     </span>
                     {data && data.queued_count > 0 && (
                         <span className="text-xs text-muted-foreground tabular-nums">
-                            в очереди: {formatNumber(data.queued_count)}
+                            В очереди {formatNumber(data.queued_count)}
                         </span>
                     )}
                 </div>
@@ -270,8 +264,7 @@ export function DownloadsMenu() {
                         </p>
                     ) : !data.current && data.queue.length === 0 ? (
                         <p className="px-4 py-10 text-center text-sm text-muted-foreground">
-                            Сейчас ничего не скачивается. Видео из каталога
-                            можно скачать из меню ⋮ на карточке.
+                            Очередь пуста. Чтобы добавить видео из каталога, выберите «Скачать на сервер» в его меню.
                         </p>
                     ) : (
                         <>

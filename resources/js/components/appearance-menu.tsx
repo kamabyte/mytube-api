@@ -62,7 +62,7 @@ export function AppearanceMenu() {
         <>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="size-11 rounded-full md:size-9" aria-label="Настройки оформления и приложения">
+                    <Button variant="ghost" size="icon" className="size-11 rounded-full max-md:-mr-[13px] md:size-9" aria-label="Настройки оформления и приложения">
                         <Sun className="size-[18px] dark:hidden" />
                         <Moon className="hidden size-[18px] dark:block" />
                     </Button>

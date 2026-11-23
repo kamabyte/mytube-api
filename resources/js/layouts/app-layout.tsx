@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { AppearanceMenu } from "@/components/appearance-menu";
-import { DownloadsMenu } from "@/components/downloads-menu";
 import { NetworkStatus } from "@/components/network-status";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { NotificationBell } from "@/components/notification-bell";
@@ -193,7 +192,6 @@ function Header({ sidebarCompact, onToggleSidebar }: { sidebarCompact: boolean; 
                             <Search className="size-[18px]" />
                         </Link>
                     </Button>
-                    <DownloadsMenu />
                     <NotificationBell />
                     <AppearanceMenu />
                 </div>

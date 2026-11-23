@@ -100,18 +100,30 @@ class VideoController extends Controller
         ));
     }
 
-    public function stream(Video $video): Response
+    public function stream(Request $request, Video $video): Response
     {
         $path = VideoFile::path($video);
         abort_if($path === null, 404, 'Video file was not found.');
 
-        return response('', 200, [
+        $response = response('', 200, [
             'Content-Type' => File::mimeType($path) ?? 'video/mp4',
             'Accept-Ranges' => 'bytes',
             'Cache-Control' => 'no-cache, no-store, must-revalidate',
             'X-Accel-Buffering' => 'no',
             'X-Accel-Redirect' => $this->resolveInternalMediaPath($path),
         ]);
+
+        if ($request->boolean('download')) {
+            $extension = pathinfo($path, PATHINFO_EXTENSION);
+            $title = Str::replace(['/', '\\'], ' ', $video->name);
+            $response->headers->set('Content-Disposition', $response->headers->makeDisposition(
+                'attachment',
+                "$title.$extension",
+                "video-$video->id.$extension",
+            ));
+        }
+
+        return $response;
     }
 
     /**

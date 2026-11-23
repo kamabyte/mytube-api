@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { Clapperboard, Clock3, CloudDownload, Download, HardDrive, type LucideIcon, Tv } from 'lucide-react';
 import { useState } from 'react';
+import { DownloadsMenu } from '@/components/downloads-menu';
 import { PageTitle } from '@/components/empty-state';
 import { formatBytes, formatNumber, plural } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -167,7 +168,7 @@ export default function Stats({ summary, channels, daily }: { summary: Summary; 
     return (
         <>
             <Head title="Статистика" />
-            <PageTitle>Статистика</PageTitle>
+            <PageTitle actions={<div><DownloadsMenu /></div>}>Статистика</PageTitle>
 
             <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:gap-4 lg:grid-cols-3 2xl:grid-cols-6">
                 <Tile icon={Clapperboard} label="Видео" value={formatNumber(summary.total_videos - summary.videos_in_progress)} />
@@ -183,7 +184,7 @@ export default function Stats({ summary, channels, daily }: { summary: Summary; 
                     icon={Download}
                     label="В очереди"
                     value={formatNumber(summary.videos_in_progress)}
-                    hint="ждут скачивания"
+                    hint="скачивание на сервер"
                 />
                 <Tile
                     icon={CloudDownload}

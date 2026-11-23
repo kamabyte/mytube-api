@@ -81,7 +81,7 @@ export interface SharedProps {
     deletePin: { configured: boolean; unlocked: boolean };
     /** Непрочитанные уведомления — бейдж колокольчика. */
     unreadNotifications: number;
-    /** Очередь воркера — кнопка «Загрузки» в шапке. */
+    /** Очередь скачивания на сервер в «Статистике». */
     downloads: { queued: number; active: boolean };
     [key: string]: unknown;
 }

@@ -42,6 +42,14 @@ it('delegates video streaming to nginx from the media disk', function (): void {
     $response->assertHeader('accept-ranges', 'bytes');
     $response->assertHeader('content-type', 'video/mp4');
     $response->assertHeader('x-accel-redirect', "/_protected_media/videos/{$channel->id}/{$video->id}.mp4");
+    expect($response->headers->has('content-disposition'))->toBeFalse();
+
+    $video->update(['name' => 'Япония/Осака']);
+
+    $this->get("/api/videos/{$video->id}/stream?download=1")
+        ->assertOk()
+        ->assertHeader('x-accel-redirect', "/_protected_media/videos/{$channel->id}/{$video->id}.mp4")
+        ->assertHeader('content-disposition', "attachment; filename=video-{$video->id}.mp4; filename*=utf-8''".rawurlencode('Япония Осака.mp4'));
 });
 
 it('returns only downloaded videos from the api', function (): void {
