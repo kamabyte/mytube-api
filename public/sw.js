@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'mytube-offline-';
-const CACHE_NAME = `${CACHE_PREFIX}v4`;
+const CACHE_NAME = `${CACHE_PREFIX}v5`;
 const OFFLINE_PAGE = '/offline.html';
 const DEVICE_LIBRARY = '/on-device';
 const BUILD_ASSETS = '/build/assets/';

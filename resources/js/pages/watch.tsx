@@ -119,7 +119,7 @@ export default function Watch({ video, channel, upNext }: Props) {
                             </div>
                             {description ? (
                                 <>
-                                    <div className={cn('mt-2 leading-relaxed break-words whitespace-pre-line', !expanded && 'line-clamp-3')}>
+                                    <div data-selectable className={cn('mt-2 leading-relaxed break-words whitespace-pre-line', !expanded && 'line-clamp-3')}>
                                         <RichText text={description} onSeek={(seconds) => player.current?.seek(seconds)} />
                                     </div>
                                     {(description.length > 200 || description.split('\n').length > 3) && (

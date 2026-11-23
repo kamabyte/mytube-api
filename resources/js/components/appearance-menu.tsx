@@ -13,7 +13,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { type Appearance, useAppearance } from '@/hooks/use-appearance';
-import type { InstallPromptEvent } from '@/lib/pwa';
+import { isStandaloneApp, type InstallPromptEvent } from '@/lib/pwa';
 
 const OPTIONS: { value: Appearance; label: string; icon: typeof Sun }[] = [
     { value: 'system', label: 'Как в системе', icon: Monitor },
@@ -31,8 +31,7 @@ export function AppearanceMenu() {
         const standalone = window.matchMedia('(display-mode: standalone)');
         const isAppleMobile = /iPhone|iPad|iPod/.test(navigator.userAgent)
             || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        const navigatorStandalone = (navigator as Navigator & { standalone?: boolean }).standalone;
-        const updateMode = () => setAppleBrowser(isAppleMobile && !standalone.matches && !navigatorStandalone);
+        const updateMode = () => setAppleBrowser(isAppleMobile && !isStandaloneApp());
         const onPrompt = (event: Event) => {
             event.preventDefault();
             setPrompt(event as InstallPromptEvent);

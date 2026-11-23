@@ -156,6 +156,33 @@
         font-feature-settings: "cv11", "ss01";
     }
 
+    html[data-standalone-app] {
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+
+        :where(*) {
+            -webkit-user-select: inherit;
+            user-select: inherit;
+        }
+
+        :where([data-selectable], input, textarea, [contenteditable]) {
+            -webkit-user-select: text;
+            user-select: text;
+        }
+
+        :where([data-selectable], input, textarea, select, [contenteditable], a[target="_blank"], a[download]) {
+            -webkit-touch-callout: default;
+        }
+
+        @media (any-pointer: coarse) {
+            &, :where(*) {
+                touch-action: pan-x pan-y;
+            }
+        }
+    }
+
     ::selection {
         background: color-mix(in oklch, var(--brand) 35%, transparent);
     }

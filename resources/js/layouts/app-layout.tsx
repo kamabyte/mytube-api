@@ -10,7 +10,7 @@ import {
     Search,
     Tv,
 } from "lucide-react";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { AppearanceMenu } from "@/components/appearance-menu";
 import { DeviceLibraryLink } from "@/components/device-library-link";
 import { NetworkStatus } from "@/components/network-status";
@@ -159,7 +159,7 @@ function Header({ sidebarCompact, onToggleSidebar }: { sidebarCompact: boolean; 
     const sidebarLabel = sidebarCompact ? "Развернуть сайдбар" : "Свернуть сайдбар";
 
     return (
-        <header className="sticky top-0 z-20 border-b border-border/60 bg-chrome pt-[env(safe-area-inset-top)] backdrop-blur-xl backdrop-saturate-150">
+        <header data-pull-to-refresh className="sticky top-0 z-20 border-b border-border/60 bg-chrome pt-[env(safe-area-inset-top)] backdrop-blur-xl backdrop-saturate-150">
             <div className="flex h-14 items-center gap-3 px-4 md:h-16 md:px-6 lg:px-8">
                 <Link
                     href="/"
@@ -249,6 +249,7 @@ function TabBar() {
 
 export default function AppLayout({ children }: { children: ReactNode }) {
     const [sidebarCompact, setSidebarCompact] = useStoredToggle("mytube:sidebar-compact", false);
+    const refreshSurface = useRef<HTMLDivElement>(null);
 
     return (
         <div className={cn(
@@ -256,10 +257,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             !sidebarCompact && "lg:[--sidebar-width:16rem]",
         )}>
             <Sidebar compact={sidebarCompact} />
-            <div className="md:pl-(--sidebar-width)">
+            <div ref={refreshSurface} className="md:pl-(--sidebar-width)">
                 <Header sidebarCompact={sidebarCompact} onToggleSidebar={() => setSidebarCompact(!sidebarCompact)} />
                 <NetworkStatus />
-                <PullToRefresh />
+                <PullToRefresh surface={refreshSurface} />
                 <main data-pull-to-refresh className="px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))] md:px-6 md:pt-6 md:pb-[max(3rem,env(safe-area-inset-bottom))] lg:px-8">
                     {children}
                 </main>

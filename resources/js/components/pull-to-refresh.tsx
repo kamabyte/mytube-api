@@ -1,23 +1,25 @@
 import { router, usePage } from '@inertiajs/react';
 import { ArrowDown, LoaderCircle } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { type RefObject, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-const THRESHOLD = 72;
+const THRESHOLD = 80;
 
-export function PullToRefresh() {
+export function PullToRefresh({ surface }: { surface: RefObject<HTMLDivElement | null> }) {
     const { url, component } = usePage();
     const indicator = useRef<HTMLDivElement>(null);
     const busy = useRef(false);
     const [phase, setPhase] = useState<'idle' | 'pull' | 'ready' | 'refresh'>('idle');
 
     useEffect(() => {
+        const element = surface.current;
+        if (!element) return;
+
         let start: Touch | undefined;
         let distance = 0;
 
         const reset = () => {
-            document.removeEventListener('touchmove', onMove);
             start = undefined;
             distance = 0;
             indicator.current?.style.removeProperty('--pull-distance');
@@ -27,31 +29,31 @@ export function PullToRefresh() {
         const onMove = (event: TouchEvent) => {
             if (!start) return;
             const touch = event.touches[0];
-            if (!touch || event.touches.length !== 1 || !event.cancelable) return reset();
+            if (!touch || event.touches.length !== 1 || window.scrollY > 1) return reset();
 
             const dy = touch.clientY - start.clientY;
             const dx = Math.abs(touch.clientX - start.clientX);
-            if (!distance && Math.max(dx, Math.abs(dy)) < 8) return;
-            if (dy <= 0 || (!distance && dx >= dy) || window.scrollY > 1) return reset();
+            if (!distance && Math.max(dx, Math.abs(dy)) < 4) return;
+            if (dy <= 0 || (!distance && dx >= dy)) return reset();
 
-            event.preventDefault();
-            distance = Math.min(110, dy * 0.5);
-            indicator.current?.style.setProperty('--pull-distance', `${distance}px`);
+            // WebKit can take over scrolling and still deliver touchmove at the top.
+            if (event.cancelable) event.preventDefault();
+            distance = dy;
+            indicator.current?.style.setProperty('--pull-distance', `${Math.min(110, distance * 0.65)}px`);
             setPhase(distance >= THRESHOLD ? 'ready' : 'pull');
         };
 
         const onStart = (event: TouchEvent) => {
             if (start) reset();
-            if (busy.current || window.scrollY > 1 || event.touches.length !== 1) return;
-            if (!(event.target instanceof Element) || !event.target.closest('main[data-pull-to-refresh]')) return;
-            if (event.target.closest('input, textarea, select, [contenteditable], [role="dialog"], [data-no-pull-refresh]')) return;
+            if (busy.current || component === 'on-device' || window.scrollY > 1 || event.touches.length !== 1) return;
+            if (!(event.target instanceof Element) || !event.target.closest('[data-pull-to-refresh]')) return;
+            if (event.target.closest('button, input, textarea, select, [contenteditable], [role="button"], [role="dialog"], [data-no-pull-refresh]')) return;
 
             start = event.touches[0];
-            document.addEventListener('touchmove', onMove, { passive: false });
         };
 
         const onEnd = () => {
-            const shouldRefresh = distance >= THRESHOLD;
+            const shouldRefresh = distance >= THRESHOLD && window.scrollY <= 1;
             reset();
             if (!shouldRefresh || busy.current) return;
             if (!navigator.onLine) {
@@ -77,16 +79,19 @@ export function PullToRefresh() {
             });
         };
 
-        document.addEventListener('touchstart', onStart, { passive: true });
-        document.addEventListener('touchend', onEnd);
-        document.addEventListener('touchcancel', reset);
+        // Register before touchstart so iOS can include this listener in scroll handling.
+        element.addEventListener('touchstart', onStart, { passive: true });
+        element.addEventListener('touchmove', onMove, { passive: false });
+        element.addEventListener('touchend', onEnd);
+        element.addEventListener('touchcancel', reset);
         return () => {
             reset();
-            document.removeEventListener('touchstart', onStart);
-            document.removeEventListener('touchend', onEnd);
-            document.removeEventListener('touchcancel', reset);
+            element.removeEventListener('touchstart', onStart);
+            element.removeEventListener('touchmove', onMove);
+            element.removeEventListener('touchend', onEnd);
+            element.removeEventListener('touchcancel', reset);
         };
-    }, [url, component]);
+    }, [url, component, surface]);
 
     return (
         <div
