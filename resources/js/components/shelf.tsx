@@ -15,6 +15,7 @@ export function Shelf({
     actions,
     children,
     itemClassName = 'w-[72vw] sm:w-[300px] lg:w-[320px]',
+    lazy = false,
 }: {
     title: ReactNode;
     href?: string;
@@ -22,13 +23,30 @@ export function Shelf({
     actions?: ReactNode;
     children: ReactElement[];
     itemClassName?: string;
+    lazy?: boolean;
 }) {
+    const shelf = useRef<HTMLElement>(null);
     const scroller = useRef<HTMLDivElement>(null);
     const [edges, setEdges] = useState({ start: true, end: children.length <= 1 });
+    const [nearViewport, setNearViewport] = useState(false);
+    const showCards = !lazy || nearViewport;
+
+    useEffect(() => {
+        if (showCards || !shelf.current) return;
+
+        const observer = new IntersectionObserver(([entry]) => {
+            if (!entry.isIntersecting) return;
+            setNearViewport(true);
+            observer.disconnect();
+        }, { rootMargin: '450px 0px' });
+
+        observer.observe(shelf.current);
+        return () => observer.disconnect();
+    }, [showCards]);
 
     useEffect(() => {
         const el = scroller.current;
-        if (!el) return;
+        if (!el || !showCards) return;
         const first = el.firstElementChild;
         const last = el.lastElementChild;
 
@@ -56,7 +74,7 @@ export function Shelf({
         observer.observe(first);
         observer.observe(last);
         return () => observer.disconnect();
-    }, [children.length]);
+    }, [children.length, showCards]);
 
     if (children.length === 0) return null;
 
@@ -69,6 +87,7 @@ export function Shelf({
 
     return (
         <section
+            ref={shelf}
             className="group/shelf -mx-4 md:-mx-6 lg:-mx-8"
             // Long home pages have hundreds of cards. Keep offscreen rows out
             // of layout/paint, retaining their measured height and scroll state.
@@ -88,25 +107,30 @@ export function Shelf({
                 </h2>
                 <div className="ml-auto flex shrink-0 items-center gap-2">
                     {actions}
-                    <div className="hidden gap-1.5 md:flex">
+                    {showCards && <div className="hidden gap-1.5 md:flex">
                         <Button variant="secondary" size="icon" className="size-8 rounded-full" disabled={edges.start} onClick={() => scrollBy(-1)} aria-label="Назад">
                             <ChevronLeft className="size-4" />
                         </Button>
                         <Button variant="secondary" size="icon" className="size-8 rounded-full" disabled={edges.end} onClick={() => scrollBy(1)} aria-label="Вперёд">
                             <ChevronRight className="size-4" />
                         </Button>
-                    </div>
+                    </div>}
                 </div>
             </div>
             <div
                 ref={scroller}
                 className="scrollbar-none flex snap-x snap-proximity scroll-px-4 gap-4 overflow-x-auto overscroll-x-contain px-4 pb-2 md:scroll-px-6 md:px-6 lg:scroll-px-8 lg:px-8"
             >
-                {children.map((child) => (
+                {showCards ? children.map((child) => (
                     <div key={child.key} className={cn('shrink-0 snap-start', itemClassName)}>
                         {child}
                     </div>
-                ))}
+                )) : (
+                    <div aria-hidden="true" className={cn('shrink-0', itemClassName)}>
+                        <div className="aspect-video rounded-xl bg-muted" />
+                        <div className="h-16" />
+                    </div>
+                )}
             </div>
         </section>
     );

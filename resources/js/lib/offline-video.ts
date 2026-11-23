@@ -4,6 +4,7 @@ export const DEVICE_LIBRARY = '/on-device';
 
 const DATABASE = 'mytube-device-library';
 const VIDEOS = 'videos';
+const libraryListeners = new Set<() => void>();
 
 export interface SavedVideo {
     id: number;
@@ -61,7 +62,10 @@ async function update(id: number, next?: SavedVideo): Promise<SavedVideo | undef
             const store = transaction.objectStore(VIDEOS);
             const previous = store.get(id);
             previous.onsuccess = () => next ? store.put(next) : store.delete(id);
-            transaction.oncomplete = () => resolve(previous.result as SavedVideo | undefined);
+            transaction.oncomplete = () => {
+                resolve(previous.result as SavedVideo | undefined);
+                libraryListeners.forEach((listener) => listener());
+            };
             transaction.onabort = () => reject(transaction.error);
         });
     } finally {
@@ -76,6 +80,11 @@ export function savedVideo(id: number) {
 export async function savedVideos() {
     const videos = await read<SavedVideo[]>((store) => store.getAll());
     return videos.sort((a, b) => b.savedAt - a.savedAt);
+}
+
+export function onSavedVideosChange(listener: () => void) {
+    libraryListeners.add(listener);
+    return () => libraryListeners.delete(listener);
 }
 
 async function removeFile(folder: FileSystemDirectoryHandle, name: string) {

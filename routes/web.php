@@ -9,13 +9,17 @@ use App\Http\Controllers\Web\SearchController;
 use App\Http\Controllers\Web\StatisticsController;
 use App\Http\Controllers\Web\VideoController;
 use App\Http\Controllers\Web\VideoFileController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 /*
  * Веб-клиент. JSON API для ТВ-клиентов — под /api (routes/api.php).
  */
 Route::get('/', HomeController::class)->name('home');
-Route::view('/on-device', 'on-device')->name('on-device');
+Route::get('/on-device', fn (Request $request) => $request->header('X-Inertia')
+    ? Inertia::render('on-device')
+    : view('on-device'))->name('on-device');
 
 Route::get('/videos', [VideoController::class, 'index'])->name('videos.index');
 Route::get('/videos/lookup', [VideoController::class, 'lookup'])->name('videos.lookup');

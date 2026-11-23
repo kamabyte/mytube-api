@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Channel;
 use App\Models\Video;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -291,6 +293,17 @@ it('renders statistics', function (): void {
             ->where('summary.total_videos', 1)
             ->has('channels', 1)
             ->has('daily', 14));
+});
+
+it('serves the local library as a standalone document and an Inertia page', function (): void {
+    $this->get('/on-device')->assertOk()->assertViewIs('on-device');
+
+    $version = app(HandleInertiaRequests::class)->version(Request::create('/on-device'));
+
+    $this->get('/on-device', ['X-Inertia' => 'true', 'X-Inertia-Version' => $version ?? ''])
+        ->assertOk()
+        ->assertHeader('X-Inertia', 'true')
+        ->assertJsonPath('component', 'on-device');
 });
 
 it('serves the JSON API under /api and the web pages at the root', function (): void {

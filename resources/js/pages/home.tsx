@@ -80,6 +80,7 @@ export default function Home({ latest, shelves }: Props) {
                 {shelves.map((channel) => (
                     <Shelf
                         key={channel.id}
+                        lazy
                         href={`/channels/${channel.id}`}
                         icon={<ChannelAvatar channel={channel} className="size-8" />}
                         title={

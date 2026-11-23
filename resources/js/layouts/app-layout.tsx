@@ -1,4 +1,4 @@
-import { Link, usePage } from "@inertiajs/react";
+import { Link, router, usePage } from "@inertiajs/react";
 import {
     ChartColumnBig,
     Clapperboard,
@@ -10,8 +10,9 @@ import {
     Search,
     Tv,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 import { AppearanceMenu } from "@/components/appearance-menu";
+import { DeviceLibraryLink } from "@/components/device-library-link";
 import { NetworkStatus } from "@/components/network-status";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { NotificationBell } from "@/components/notification-bell";
@@ -80,7 +81,7 @@ function Sidebar({ compact }: { compact: boolean }) {
                 {NAV.map((item) => {
                     const active = isActive(item, url);
                     const Icon = item.icon;
-                    const NavLink = item.href === DEVICE_LIBRARY ? "a" : Link;
+                    const NavLink = item.href === DEVICE_LIBRARY ? DeviceLibraryLink : Link;
 
                     return (
                         <Tooltip key={item.href}>
@@ -202,7 +203,14 @@ function Header({ sidebarCompact, onToggleSidebar }: { sidebarCompact: boolean; 
 
 /** Нижняя панель вкладок на телефоне — как в iOS. */
 function TabBar() {
-    const { url } = usePage();
+    const { url, component } = usePage();
+    const prefetchHref = component === "feed" ? "/" : component === "home" ? "/videos" : null;
+
+    useEffect(() => {
+        if (prefetchHref && navigator.onLine) {
+            router.prefetch(prefetchHref, {}, { cacheFor: ["5s", "1m"] });
+        }
+    }, [prefetchHref]);
 
     return (
         <nav
@@ -213,7 +221,7 @@ function TabBar() {
                 {NAV.map((item) => {
                     const active = isActive(item, url);
                     const Icon = item.icon;
-                    const NavLink = item.href === DEVICE_LIBRARY ? "a" : Link;
+                    const NavLink = item.href === DEVICE_LIBRARY ? DeviceLibraryLink : Link;
 
                     return (
                         <NavLink
