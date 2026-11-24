@@ -137,7 +137,7 @@ class ParseYoutubeVideos extends Command
                 if ($syncWatchLater) {
                     $playlistItems = [];
                     $knownIds = $channel->videos()->withoutGlobalScopes()->pluck('videos.external_id')->all();
-                    $additionalVideoIds = array_diff($watchLaterIds, $knownIds);
+                    $additionalVideoIds = $watchLater->withoutDurationSkips(array_diff($watchLaterIds, $knownIds));
                 } elseif ($parsePopular) {
                     $playlistItems = [];
                     $popularVideos = $this->fetchPopularVideos($youTube, $uploadsPlaylistId);
@@ -242,6 +242,7 @@ class ParseYoutubeVideos extends Command
                 $updatedVideosCount = 0;
                 $skippedShortVideosCount = 0;
                 $skippedLongVideosCount = 0;
+                $durationSkippedIds = [];
                 $upcomingVideoIds = [];
 
                 foreach (array_chunk($videoIds, 50) as $videoIdsChunk) {
@@ -272,6 +273,9 @@ class ParseYoutubeVideos extends Command
 
                         if ($durationSeconds < config('app.videos.min_video_duration')) {
                             $skippedShortVideosCount++;
+                            if ($durationSeconds > 0) {
+                                $durationSkippedIds[] = $video->id;
+                            }
                             $this->logVeryVerbose(sprintf(
                                 'Пропуск короткого видео %s (%d сек): %s',
                                 $video->id,
@@ -284,6 +288,7 @@ class ParseYoutubeVideos extends Command
 
                         if ($durationSeconds > config('app.videos.max_video_duration')) {
                             $skippedLongVideosCount++;
+                            $durationSkippedIds[] = $video->id;
                             $this->logVeryVerbose(sprintf(
                                 'Пропуск длинного видео %s (%d сек): %s',
                                 $video->id,
@@ -341,6 +346,7 @@ class ParseYoutubeVideos extends Command
                     ->delete();
 
                 if ($syncWatchLater) {
+                    $watchLater->rememberDurationSkips($durationSkippedIds);
                     $channel->update(['last_synced_at' => now()]);
                     Cache::forget(WatchLater::STATUS_KEY);
                 } elseif (! $channel->is_playlist && $latestPublishedAt && (! $channel->last_synced_at || $latestPublishedAt->gt($channel->last_synced_at))) {

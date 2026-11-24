@@ -12,6 +12,6 @@ Schedule::command(ParseYoutubeVideos::class)
 
 Schedule::command(ParseYoutubeVideos::class, ['--watch-later'])
     ->when(fn () => config('services.youtube.watch_later_enabled'))
-    ->everyFifteenMinutes()
+    ->everyFiveMinutes()
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/schedule-youtube-watch-later.log'));

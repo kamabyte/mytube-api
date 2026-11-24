@@ -108,3 +108,45 @@ it('reports a failed session without exposing yt-dlp output or changing the cata
         ->where('syncError', 'Не удалось прочитать «Смотреть позже». Проверьте сессию YouTube и доступность yt-dlp.')
         ->has('videos.data', 0));
 });
+
+it('rechecks videos skipped by duration only after the Watch Later cache expires', function (): void {
+    config([
+        'app.videos.min_video_duration' => 120,
+        'app.videos.max_video_duration' => 3600,
+    ]);
+    Process::fake(fn () => Process::result("shortVideo1\nlongVideo01\n"));
+
+    $resources = Mockery::mock(VideosResource::class);
+    $resources->shouldReceive('listVideos')
+        ->twice()
+        ->with('snippet,contentDetails,statistics,liveStreamingDetails', ['id' => 'shortVideo1,longVideo01'])
+        ->andReturn(new VideoListResponse(['items' => [
+            [
+                'id' => 'shortVideo1',
+                'snippet' => ['title' => 'Short video', 'liveBroadcastContent' => 'none'],
+                'contentDetails' => ['duration' => 'PT1M'],
+            ],
+            [
+                'id' => 'longVideo01',
+                'snippet' => ['title' => 'Long video', 'liveBroadcastContent' => 'none'],
+                'contentDetails' => ['duration' => 'PT2H'],
+            ],
+        ]]));
+
+    $youTube = Mockery::mock(YouTube::class);
+    $youTube->videos = $resources;
+    app()->instance(YouTube::class, $youTube);
+
+    $this->freezeTime();
+    $this->artisan('youtube:parse-videos', ['--watch-later' => true])->assertSuccessful();
+    $this->travel(5)->minutes();
+    $this->artisan('youtube:parse-videos', ['--watch-later' => true])->assertSuccessful();
+
+    $source = Channel::where('external_id', Channel::WATCH_LATER_ID)->sole();
+    expect($source->last_synced_at->timestamp)->toBe(now()->timestamp);
+    $resources->shouldHaveReceived('listVideos')->once();
+
+    $this->travel(24)->hours();
+    $this->artisan('youtube:parse-videos', ['--watch-later' => true])->assertSuccessful();
+    $this->assertDatabaseCount('videos', 0);
+});
