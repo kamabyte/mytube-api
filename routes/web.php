@@ -9,6 +9,7 @@ use App\Http\Controllers\Web\SearchController;
 use App\Http\Controllers\Web\StatisticsController;
 use App\Http\Controllers\Web\VideoController;
 use App\Http\Controllers\Web\VideoFileController;
+use App\Http\Controllers\Web\WatchLaterController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -40,6 +41,7 @@ Route::patch('/channels/{channel}', [ChannelController::class, 'update'])->name(
 Route::delete('/channels/{channel}', [ChannelController::class, 'destroy'])->name('channels.destroy');
 
 Route::get('/search', SearchController::class)->name('search');
+Route::get('/watch-later', WatchLaterController::class)->name('watch-later');
 
 // Очередь скачивания на сервер в «Статистике» (JSON).
 Route::get('/downloads', [DownloadController::class, 'index'])->name('downloads.index');

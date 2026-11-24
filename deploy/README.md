@@ -12,7 +12,7 @@ MyTube работает в Docker под управлением **Dokploy**: с�
 |---|---|---|
 | `api` | Laravel + nginx (serversideup/php 8.5), миграции при старте; проксирует WebSocket `/app/` в `reverb` | домен стека в Dokploy; `http://<сервер>:8000` для ТВ-клиентов |
 | `reverb` | `php artisan reverb:start` — WebSocket для уведомлений «видео готово»; наружу не опубликован | — |
-| `scheduler` | `php artisan schedule:work` — разбор каналов раз в минуту (плейлистов — раз в 10 минут) | — |
+| `scheduler` | `php artisan schedule:work` — разбор каналов и плейлистов, импорт «Смотреть позже» при включении | — |
 | `worker` | `video-downloader worker` из [mytube-workers](https://github.com/kamabyte/mytube-workers) | — |
 
 ## Подготовка хоста
@@ -74,6 +74,14 @@ deploy/deploy.sh <commit>    # откатиться / закрепить кон�
 Если меняется сам `compose.yml` — вставить новую версию в Dokploy (стек →
 Compose File) и Deploy. Стек в Dokploy — копия файла из репозитория, источник
 правды — репозиторий.
+
+## «Смотреть позже»
+
+1. Подготовьте отдельный файл cookies YouTube в формате Netscape по [инструкции yt-dlp](https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies). На сервере положите его в `/srv/mytube/data/storage/app/private/youtube-watch-later.cookies.txt`. Дайте доступ на чтение пользователю приложения (UID 994, режим `0600`).
+2. В Environment стека задайте `YOUTUBE_WATCH_LATER_ENABLED=true`. При первом успешном запуске импортируется весь текущий список, а подходящие видео попадают в обычную очередь. Планировщик проверяет список раз в 15 минут.
+3. Чтобы проверить сразу, выполните в контейнере `scheduler` команду `php artisan youtube:parse-videos --watch-later`. В вебе результат виден в разделе «Смотреть позже», а сообщения планировщика доступны в `storage/logs/schedule-youtube-watch-later.log`.
+
+«Смотреть позже» хранит уже импортированные видео после их удаления из списка YouTube. После отключения синхронизации они остаются в медиатеке, включая существующую очередь. Сессия «Смотреть позже» используется только при чтении списка. Если воркеру нужны отдельные cookies для прежних источников, задайте `VIDEO_DOWNLOADER_YTDLP_COOKIE_FILE=/worker/cookies.txt` и используйте файл воркера.
 
 ## Откат версии
 

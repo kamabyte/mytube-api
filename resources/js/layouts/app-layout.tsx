@@ -2,6 +2,7 @@ import { Link, router, usePage } from "@inertiajs/react";
 import {
     ChartColumnBig,
     Clapperboard,
+    Clock3,
     HardDrive,
     House,
     type LucideIcon,
@@ -46,9 +47,10 @@ const NAV: NavItem[] = [
         href: "/videos",
         label: "Все видео",
         icon: Clapperboard,
-        match: /^\/(videos|watch)\b/,
+        match: /^\/(videos|watch)(?:[/?]|$)/,
     },
     { href: "/channels", label: "Каналы", icon: Tv, match: /^\/channels\b/ },
+    { href: "/watch-later", label: "Смотреть позже", shortLabel: "Позже", icon: Clock3 },
     { href: DEVICE_LIBRARY, label: "На устройстве", shortLabel: "Офлайн", icon: HardDrive },
     { href: "/statistics", label: "Статистика", icon: ChartColumnBig },
 ];
@@ -217,7 +219,7 @@ function TabBar() {
             className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-chrome backdrop-blur-xl backdrop-saturate-150 md:hidden"
             aria-label="Разделы"
         >
-            <div className="grid h-14 grid-cols-5 pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
+            <div className="grid h-14 grid-cols-6 pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
                 {NAV.map((item) => {
                     const active = isActive(item, url);
                     const Icon = item.icon;
@@ -230,7 +232,7 @@ function TabBar() {
                             aria-label={item.label}
                             aria-current={active ? "page" : undefined}
                             className={cn(
-                                "pressable flex flex-col items-center justify-center gap-0.5 rounded-lg px-0.5 text-center text-xs font-medium text-muted-foreground outline-none transition-[background-color,color,opacity,scale] duration-150 hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:bg-accent data-pressed:bg-accent data-loading:bg-accent data-loading:text-foreground",
+                                "pressable flex flex-col items-center justify-center gap-0.5 rounded-lg px-0.5 text-center text-[11px] font-medium text-muted-foreground outline-none transition-[background-color,color,opacity,scale] duration-150 hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:bg-accent data-pressed:bg-accent data-loading:bg-accent data-loading:text-foreground min-[400px]:text-xs",
                                 active && "text-brand",
                             )}
                         >

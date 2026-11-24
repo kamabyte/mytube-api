@@ -37,6 +37,8 @@ return [
 
     'youtube' => [
         'key' => env('YOUTUBE_API_KEY'),
+        'watch_later_enabled' => env('YOUTUBE_WATCH_LATER_ENABLED', false),
+        'watch_later_cookies' => env('YOUTUBE_WATCH_LATER_COOKIE_FILE', storage_path('app/private/youtube-watch-later.cookies.txt')),
     ],
 
     // Хук «видео скачалось» от mytube-workers: общий токен в заголовке Authorization.

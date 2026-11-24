@@ -35,7 +35,7 @@ class ChannelController extends Controller
 
     public function index(): Response
     {
-        $channels = Channel::query()
+        $channels = Channel::youtubeSources()
             ->withCount(['videos', ...$this->queuedCount(), ...Channel::catalogCount()])
             ->withSum('videos', 'file_size')
             // По всему каталогу: канал «по запросу» без скачанного — не в самом низу.
@@ -53,8 +53,12 @@ class ChannelController extends Controller
         ]);
     }
 
-    public function show(Request $request, Channel $channel): Response
+    public function show(Request $request, Channel $channel): Response|RedirectResponse
     {
+        if ($channel->isWatchLater()) {
+            return to_route('watch-later');
+        }
+
         $sort = VideoSort::fromRequest($request);
 
         $channel->loadCount(['videos', ...$this->queuedCount(), ...Channel::catalogCount()])
@@ -138,6 +142,8 @@ class ChannelController extends Controller
 
     public function update(UpdateChannelRequest $request, Channel $channel): RedirectResponse
     {
+        abort_if($channel->isWatchLater(), 404);
+
         $channel->setDownloadMode($request->downloadOnDemand(), $request->syncPaused(), $request->downloadNewOnly());
 
         if ($channel->sync_paused) {
@@ -157,6 +163,8 @@ class ChannelController extends Controller
 
     public function destroy(Request $request, Channel $channel, LibraryCleaner $cleaner, DeletePin $deletePin): RedirectResponse
     {
+        abort_if($channel->isWatchLater(), 404);
+
         $deletePin->authorize($request);
 
         $summary = $cleaner->channelSummary($channel);

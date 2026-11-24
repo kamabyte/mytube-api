@@ -15,6 +15,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class ChannelCard extends JsonResource
 {
+    public const string VIDEO_CHANNEL = 'channel:id,name,thumbnail,is_playlist,external_id';
+
     /**
      * @return array<string, mixed>
      */
@@ -25,6 +27,7 @@ class ChannelCard extends JsonResource
             'name' => $this->name,
             'thumbnail' => MediaUrl::public($this->getRawOriginal('thumbnail')),
             'is_playlist' => (bool) $this->is_playlist,
+            'is_watch_later' => $this->isWatchLater(),
             'download_on_demand' => (bool) $this->download_on_demand,
             'auto_download_from' => $this->whenHas('auto_download_from', $this->auto_download_from),
             'sync_paused' => $this->whenHas('sync_paused'),

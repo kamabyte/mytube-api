@@ -41,6 +41,7 @@ x-app-env: &app-env
   FILESYSTEM_DISK: local
   MAIL_MAILER: log
   YOUTUBE_API_KEY: ${YOUTUBE_API_KEY}
+  YOUTUBE_WATCH_LATER_ENABLED: ${YOUTUBE_WATCH_LATER_ENABLED:-false}
   # Уведомления «видео готово»: Laravel публикует события в сервис reverb,
   # браузер подключается через nginx api (location /app/).
   BROADCAST_CONNECTION: reverb
@@ -146,7 +147,7 @@ services:
       VIDEO_DOWNLOADER_FFMPEG_CRF: "23"
       VIDEO_DOWNLOADER_FFMPEG_AUDIO_BITRATE: 160k
       VIDEO_DOWNLOADER_FFMPEG_THREADS: "4"
-      VIDEO_DOWNLOADER_YTDLP_COOKIE_FILE: /worker/cookies.txt
+      VIDEO_DOWNLOADER_YTDLP_COOKIE_FILE: ${VIDEO_DOWNLOADER_YTDLP_COOKIE_FILE:-}
       # Хук «видео скачалось» → api рассылает событие через Reverb.
       VIDEO_DOWNLOADER_NOTIFY_URL: http://api:8080/api/internal/videos/{id}/downloaded
       VIDEO_DOWNLOADER_NOTIFY_TOKEN: ${WORKER_HOOK_TOKEN:?задайте WORKER_HOOK_TOKEN}

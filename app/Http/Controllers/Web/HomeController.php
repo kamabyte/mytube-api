@@ -19,14 +19,14 @@ class HomeController extends Controller
     {
         $latest = Video::catalog()
             ->withDownloadState()
-            ->with('channel:id,name,thumbnail,is_playlist')
+            ->with(ChannelCard::VIDEO_CHANNEL)
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->limit(self::SHELF_SIZE)
             ->get();
 
         // Полка на канал, каналы — по свежести последнего видео каталога.
-        $shelves = Channel::query()
+        $shelves = Channel::youtubeSources()
             ->whereHas('videos', Channel::catalogVideos()['videos'])
             ->withMax(Channel::catalogVideos(), 'published_at')
             ->withCount(['videos', ...Channel::catalogCount()])

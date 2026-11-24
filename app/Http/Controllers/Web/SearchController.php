@@ -32,7 +32,7 @@ class SearchController extends Controller
 
         // Ищем по всему каталогу: найденное, но не скачанное можно тут же попросить.
         $videos = TitleSearch::apply(Video::catalog()->withDownloadState(), $query)
-            ->with('channel:id,name,thumbnail,is_playlist')
+            ->with(ChannelCard::VIDEO_CHANNEL)
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->paginate(self::PER_PAGE)
@@ -40,7 +40,7 @@ class SearchController extends Controller
 
         // Лениво: при подгрузке следующих страниц видео каналы не нужны.
         $channels = fn (): array => ChannelCard::collection(
-            TitleSearch::apply(Channel::query(), $query)
+            TitleSearch::apply(Channel::youtubeSources(), $query)
                 ->withCount(['videos', ...Channel::catalogCount()])
                 ->orderBy('name')
                 ->limit(self::CHANNELS_LIMIT)

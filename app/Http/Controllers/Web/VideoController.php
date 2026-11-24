@@ -38,7 +38,7 @@ class VideoController extends Controller
 
         // Вся лента каталога: нескачанное — с бейджем, его можно попросить.
         $videos = VideoSort::apply(Video::catalog()->withDownloadState(), $sort)
-            ->with('channel:id,name,thumbnail,is_playlist')
+            ->with(ChannelCard::VIDEO_CHANNEL)
             ->paginate(self::PER_PAGE)
             ->withQueryString();
 
@@ -62,7 +62,7 @@ class VideoController extends Controller
             ->values();
 
         $videos = $ids->isEmpty() ? collect() : Video::query()
-            ->with('channel:id,name,thumbnail,is_playlist')
+            ->with(ChannelCard::VIDEO_CHANNEL)
             ->whereKey($ids)
             ->get();
 

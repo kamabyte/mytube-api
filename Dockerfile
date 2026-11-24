@@ -25,7 +25,10 @@ USER root
 # ffmpeg — субтитры из MP4 в WebVTT для веб-плеера (App\Support\Subtitles).
 RUN install-php-extensions intl bcmath exif \
  && apt-get update \
- && apt-get install -y --no-install-recommends sqlite3 ffmpeg \
+ && apt-get install -y --no-install-recommends sqlite3 ffmpeg python3-venv \
+ && python3 -m venv /opt/watch-later \
+ && /opt/watch-later/bin/pip install --no-cache-dir yt-dlp==2026.7.4 \
+ && ln -s /opt/watch-later/bin/yt-dlp /usr/local/bin/yt-dlp \
  && rm -rf /var/lib/apt/lists/*
 # uid/gid как у пользователя mytube на сервере (994:980): база и storage
 # в /srv/mytube/data принадлежат ему, откат на нативный запуск не требует
