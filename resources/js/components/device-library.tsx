@@ -1,5 +1,5 @@
 import { Clapperboard, HardDrive, Minus, X } from 'lucide-react';
-import { type PointerEvent, useEffect, useRef, useState } from 'react';
+import { type CSSProperties, type PointerEvent, useEffect, useRef, useState } from 'react';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Player } from '@/components/player';
 import { Button } from '@/components/ui/button';
@@ -72,18 +72,19 @@ function SavedVideoRow({ entry, editing, selected, open, onOpenChange, onPlay, o
     onPlay: () => void;
     onRemove: () => void;
 }) {
-    const [dragOffset, setDragOffset] = useState<number | null>(null);
-    const gesture = useRef<{ pointerId: number; x: number; y: number; offset: number; dragging: boolean } | null>(null);
+    const swipeSurface = useRef<HTMLDivElement>(null);
+    const gesture = useRef<{ pointerId: number; x: number; y: number; offset: number; width: number; dragging: boolean } | null>(null);
     const suppressClick = useRef(false);
-    const offset = dragOffset ?? (open ? SWIPE_ACTION_WIDTH : 0);
+    const offset = open ? SWIPE_ACTION_WIDTH : 0;
     const deleteLabel = `Удалить с устройства «${entry.video.name}»`;
 
     function startSwipe(event: PointerEvent<HTMLButtonElement>) {
-        if (editing || !event.isPrimary || event.button !== 0) return;
+        if (!event.isPrimary || event.button !== 0) return;
         suppressClick.current = false;
+        if (editing) return;
         if (!open) onOpenChange(false);
         gesture.current = {
-            pointerId: event.pointerId, x: event.clientX, y: event.clientY, offset, dragging: false,
+            pointerId: event.pointerId, x: event.clientX, y: event.clientY, offset, width: 0, dragging: false,
         };
     }
 
@@ -100,20 +101,27 @@ function SavedVideoRow({ entry, editing, selected, open, onOpenChange, onPlay, o
                 return;
             }
             start.dragging = true;
+            start.width = event.currentTarget.offsetWidth;
             event.currentTarget.setPointerCapture(event.pointerId);
+            swipeSurface.current?.setAttribute('data-swiping', '');
         }
-        setDragOffset(Math.max(0, Math.min(event.currentTarget.offsetWidth, start.offset - dx)));
+
+        const distance = Math.max(0, Math.min(start.width, start.offset - dx));
+        swipeSurface.current?.style.setProperty('--swipe-drag-offset', `${distance}px`);
     }
 
     function endSwipe(event: PointerEvent<HTMLButtonElement>) {
         const start = gesture.current;
         if (!start || start.pointerId !== event.pointerId) return;
         gesture.current = null;
-        setDragOffset(null);
-        if (!start.dragging || event.type !== 'pointerup') return;
+        if (!start.dragging) return;
+
+        swipeSurface.current?.removeAttribute('data-swiping');
+        swipeSurface.current?.style.removeProperty('--swipe-drag-offset');
+        if (event.type !== 'pointerup') return;
 
         const distance = start.offset + start.x - event.clientX;
-        if (distance >= Math.max(SWIPE_ACTION_WIDTH, event.currentTarget.offsetWidth * 0.55)) {
+        if (distance >= Math.max(SWIPE_ACTION_WIDTH, start.width * 0.55)) {
             onRemove();
             return;
         }
@@ -122,23 +130,37 @@ function SavedVideoRow({ entry, editing, selected, open, onOpenChange, onPlay, o
 
     return (
         <li className="py-1.5">
-            <div className={cn('relative flex items-center overflow-hidden rounded-lg', editing ? 'gap-1' : 'touch-pan-y')}>
+            <div
+                ref={swipeSurface}
+                className={cn('group/swipe relative flex items-center overflow-hidden rounded-lg [--swipe-offset:var(--swipe-drag-offset,var(--swipe-rest-offset))]', editing ? 'gap-1' : 'touch-pan-y')}
+                style={{ '--swipe-rest-offset': `${offset}px` } as CSSProperties}
+            >
                 {editing ? (
-                    <Button type="button" variant="ghost" size="icon" className="size-11 rounded-full" aria-label={deleteLabel} onClick={onRemove}>
+                    <Button key="edit-remove" type="button" variant="ghost" size="icon" className="size-11 rounded-full" aria-label={deleteLabel} onClick={onRemove}>
                         <span className="grid size-5 place-items-center rounded-full bg-destructive text-destructive-foreground" aria-hidden="true">
                             <Minus className="size-3.5 stroke-[2.5]" />
                         </span>
                     </Button>
-                ) : offset > 0 && (
+                ) : (
                     <Button
                         type="button"
                         variant="destructive"
-                        className="absolute inset-y-0 right-0 h-auto min-h-11"
-                        style={{ width: Math.max(SWIPE_ACTION_WIDTH, offset) }}
+                        className={cn(
+                            'absolute inset-0 h-auto min-h-11 w-full justify-start rounded-none p-0 transition-none motion-safe:transition-transform motion-safe:duration-200 group-data-swiping/swipe:transition-none',
+                            !open && 'pointer-events-none',
+                        )}
+                        style={{ translate: 'calc(100% - var(--swipe-offset))' }}
                         aria-label={deleteLabel}
+                        aria-hidden={!open || undefined}
+                        tabIndex={open ? 0 : -1}
                         onClick={onRemove}
                     >
-                        Удалить
+                        <span
+                            className="text-center motion-safe:transition-transform motion-safe:duration-200 group-data-swiping/swipe:transition-none"
+                            style={{ width: SWIPE_ACTION_WIDTH, translate: 'calc(var(--swipe-offset) / 2 - 50%)' }}
+                        >
+                            Удалить
+                        </span>
                     </Button>
                 )}
                 <button
@@ -146,10 +168,9 @@ function SavedVideoRow({ entry, editing, selected, open, onOpenChange, onPlay, o
                     aria-pressed={selected}
                     className={cn(
                         'relative flex min-w-0 items-center gap-3 rounded-lg bg-background p-1 text-left outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:bg-accent aria-pressed:bg-accent',
-                        editing ? 'flex-1' : 'w-full flex-none touch-pan-y',
-                        dragOffset === null && 'motion-safe:transition-[transform,background-color] motion-safe:duration-200',
+                        editing ? 'flex-1' : 'w-full flex-none touch-pan-y motion-safe:transition-[translate,background-color] motion-safe:duration-200 group-data-swiping/swipe:transition-none',
                     )}
-                    style={offset ? { transform: `translateX(-${offset}px)` } : undefined}
+                    style={editing ? undefined : { translate: 'calc(-1 * var(--swipe-offset))' }}
                     onPointerDown={startSwipe}
                     onPointerMove={moveSwipe}
                     onPointerUp={endSwipe}

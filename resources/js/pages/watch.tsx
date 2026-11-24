@@ -77,7 +77,7 @@ export default function Watch({ video, channel, upNext }: Props) {
                     upNext.length > 0 && 'xl:grid-cols-[minmax(0,1fr)_400px]',
                 )}
             >
-                <div data-no-pull-refresh className={cn('min-w-0', theater && 'lg:-mx-8 lg:-mt-6 xl:col-span-full')}>
+                <div data-no-pull-refresh className={cn('min-w-0', theater && 'lg:-mx-8 lg:-mt-6 xl:col-span-full', theater && playable && 'lg:bg-black')}>
                     {playable ? (
                         <Player
                             video={playable}

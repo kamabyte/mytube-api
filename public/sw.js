@@ -1,7 +1,14 @@
 const CACHE_PREFIX = 'mytube-offline-';
-const CACHE_NAME = `${CACHE_PREFIX}v7`;
+const CACHE_NAME = `${CACHE_PREFIX}v8`;
 const OFFLINE_PAGE = '/offline.html';
 const DEVICE_LIBRARY = '/on-device';
+const PWA_ASSETS = [
+    '/site.webmanifest',
+    '/icons/icon-192.png',
+    '/icons/icon-512.png',
+    '/apple-touch-icon.png',
+    '/favicon.ico',
+];
 const BUILD_ASSETS = '/build/assets/';
 const BUILD_MANIFEST = '/build/manifest.json';
 const DEVICE_ENTRY = 'resources/js/offline-app.tsx';
@@ -48,7 +55,7 @@ async function cacheDeviceLibrary(cache, response) {
 self.addEventListener('install', (event) => {
     event.waitUntil((async () => {
         const cache = await caches.open(CACHE_NAME);
-        await cache.add(new Request(OFFLINE_PAGE, { cache: 'reload' }));
+        await cache.addAll([OFFLINE_PAGE, ...PWA_ASSETS].map((path) => new Request(path, { cache: 'reload' })));
         await cacheDeviceLibrary(cache, await fetch(DEVICE_LIBRARY, { cache: 'reload' }));
         await self.skipWaiting();
     })());
@@ -69,7 +76,7 @@ self.addEventListener('fetch', (event) => {
     const url = new URL(request.url);
     if (request.method !== 'GET' || url.origin !== self.location.origin) return;
 
-    if (url.pathname.startsWith(BUILD_ASSETS)) {
+    if (url.pathname.startsWith(BUILD_ASSETS) || PWA_ASSETS.includes(url.pathname)) {
         event.respondWith((async () => (await caches.match(request)) ?? fetch(request))());
         return;
     }
