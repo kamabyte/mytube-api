@@ -1,5 +1,5 @@
-import { Clapperboard, HardDrive, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Clapperboard, HardDrive, Minus, X } from 'lucide-react';
+import { type PointerEvent, useEffect, useRef, useState } from 'react';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Player } from '@/components/player';
 import { Button } from '@/components/ui/button';
@@ -21,8 +21,8 @@ function Preview({ poster }: { poster: Blob | null }) {
         return () => URL.revokeObjectURL(next);
     }, [poster]);
 
-    return url ? <img src={url} alt="" className="aspect-video w-24 shrink-0 rounded-md object-cover" /> : (
-        <span className="grid aspect-video w-24 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
+    return url ? <img src={url} alt="" draggable={false} className="aspect-video w-20 shrink-0 rounded-md object-cover sm:w-24" /> : (
+        <span className="grid aspect-video w-20 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground sm:w-24">
             <Clapperboard className="size-5" aria-hidden="true" />
         </span>
     );
@@ -61,6 +61,120 @@ function DownloadRow({ download }: { download: OfflineDownload }) {
     );
 }
 
+const SWIPE_ACTION_WIDTH = 96;
+
+function SavedVideoRow({ entry, editing, selected, open, onOpenChange, onPlay, onRemove }: {
+    entry: SavedVideo;
+    editing: boolean;
+    selected: boolean;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onPlay: () => void;
+    onRemove: () => void;
+}) {
+    const [dragOffset, setDragOffset] = useState<number | null>(null);
+    const gesture = useRef<{ pointerId: number; x: number; y: number; offset: number; dragging: boolean } | null>(null);
+    const suppressClick = useRef(false);
+    const offset = dragOffset ?? (open ? SWIPE_ACTION_WIDTH : 0);
+    const deleteLabel = `Удалить с устройства «${entry.video.name}»`;
+
+    function startSwipe(event: PointerEvent<HTMLButtonElement>) {
+        if (editing || !event.isPrimary || event.button !== 0) return;
+        suppressClick.current = false;
+        if (!open) onOpenChange(false);
+        gesture.current = {
+            pointerId: event.pointerId, x: event.clientX, y: event.clientY, offset, dragging: false,
+        };
+    }
+
+    function moveSwipe(event: PointerEvent<HTMLButtonElement>) {
+        const start = gesture.current;
+        if (!start || start.pointerId !== event.pointerId) return;
+        const dx = event.clientX - start.x;
+        const dy = event.clientY - start.y;
+        if (!start.dragging) {
+            if (Math.max(Math.abs(dx), Math.abs(dy)) < 8) return;
+            suppressClick.current = true;
+            if (Math.abs(dx) <= Math.abs(dy) || (!open && dx > 0)) {
+                gesture.current = null;
+                return;
+            }
+            start.dragging = true;
+            event.currentTarget.setPointerCapture(event.pointerId);
+        }
+        setDragOffset(Math.max(0, Math.min(event.currentTarget.offsetWidth, start.offset - dx)));
+    }
+
+    function endSwipe(event: PointerEvent<HTMLButtonElement>) {
+        const start = gesture.current;
+        if (!start || start.pointerId !== event.pointerId) return;
+        gesture.current = null;
+        setDragOffset(null);
+        if (!start.dragging || event.type !== 'pointerup') return;
+
+        const distance = start.offset + start.x - event.clientX;
+        if (distance >= Math.max(SWIPE_ACTION_WIDTH, event.currentTarget.offsetWidth * 0.55)) {
+            onRemove();
+            return;
+        }
+        onOpenChange(distance >= SWIPE_ACTION_WIDTH / 2);
+    }
+
+    return (
+        <li className="py-1.5">
+            <div className={cn('relative flex items-center overflow-hidden rounded-lg', editing ? 'gap-1' : 'touch-pan-y')}>
+                {editing ? (
+                    <Button type="button" variant="ghost" size="icon" className="size-11 rounded-full" aria-label={deleteLabel} onClick={onRemove}>
+                        <span className="grid size-5 place-items-center rounded-full bg-destructive text-destructive-foreground" aria-hidden="true">
+                            <Minus className="size-3.5 stroke-[2.5]" />
+                        </span>
+                    </Button>
+                ) : offset > 0 && (
+                    <Button
+                        type="button"
+                        variant="destructive"
+                        className="absolute inset-y-0 right-0 h-auto min-h-11"
+                        style={{ width: Math.max(SWIPE_ACTION_WIDTH, offset) }}
+                        aria-label={deleteLabel}
+                        onClick={onRemove}
+                    >
+                        Удалить
+                    </Button>
+                )}
+                <button
+                    type="button"
+                    aria-pressed={selected}
+                    className={cn(
+                        'relative flex min-w-0 items-center gap-3 rounded-lg bg-background p-1 text-left outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:bg-accent aria-pressed:bg-accent',
+                        editing ? 'flex-1' : 'w-full flex-none touch-pan-y',
+                        dragOffset === null && 'motion-safe:transition-[transform,background-color] motion-safe:duration-200',
+                    )}
+                    style={offset ? { transform: `translateX(-${offset}px)` } : undefined}
+                    onPointerDown={startSwipe}
+                    onPointerMove={moveSwipe}
+                    onPointerUp={endSwipe}
+                    onPointerCancel={endSwipe}
+                    onLostPointerCapture={(event) => {
+                        if (event.target === event.currentTarget) endSwipe(event);
+                    }}
+                    onClick={(event) => {
+                        if (suppressClick.current && event.detail > 0) return;
+                        onPlay();
+                    }}
+                >
+                    <Preview poster={entry.poster} />
+                    <span className="min-w-0 flex-1">
+                        <span className="line-clamp-2 text-sm leading-snug font-medium [overflow-wrap:anywhere]">{entry.video.name}</span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                            {formatDuration(entry.video.duration_seconds)} · {formatBytes(entry.bytes)}
+                        </span>
+                    </span>
+                </button>
+            </div>
+        </li>
+    );
+}
+
 export function DeviceLibrary({ disconnected = false }: { disconnected?: boolean }) {
     const supported = supportsOfflineVideo();
     const downloads = useOfflineDownloads();
@@ -74,7 +188,7 @@ export function DeviceLibrary({ disconnected = false }: { disconnected?: boolean
     const [removing, setRemoving] = useState<SavedVideo | 'all' | null>(null);
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const swipedRow = useRef<HTMLDivElement | null>(null);
+    const [swipedId, setSwipedId] = useState<number | null>(null);
     const selected = entries?.find((entry) => entry.id === selectedId);
     const source = selected && playing?.entry === selected ? playing.source : null;
 
@@ -123,23 +237,12 @@ export function DeviceLibrary({ disconnected = false }: { disconnected?: boolean
         };
     }, [selected]);
 
-    function closeSwipe() {
-        swipedRow.current?.scrollTo({ left: 0, behavior: 'instant' });
-        swipedRow.current = null;
-    }
-
-    function activateRow(row: HTMLDivElement) {
-        if (swipedRow.current === row) return;
-        closeSwipe();
-        swipedRow.current = row;
-    }
-
     async function remove() {
         if (!removing) return;
         const all = removing === 'all';
         setProcessing(true);
         setError(null);
-        closeSwipe();
+        setSwipedId(null);
         if (all || removing.id === selectedId) setSelectedId(null);
         try {
             if (all) await deleteAllSavedVideos();
@@ -155,29 +258,29 @@ export function DeviceLibrary({ disconnected = false }: { disconnected?: boolean
 
     return (
         <section className="space-y-4" data-no-pull-refresh>
-            <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-                <div>
+            <header>
+                <div className="flex items-center justify-between gap-1">
                     <h1 className="font-display text-2xl font-bold">На устройстве</h1>
-                    {disconnected && (
-                        <p role="status" className="mt-1 text-sm text-muted-foreground">Нет связи с сервером MyTube.</p>
-                    )}
                     {!!entries?.length && (
-                        <p className="mt-1 text-sm text-muted-foreground">Занято {formatBytes(entries.reduce((sum, item) => sum + item.bytes, 0))}</p>
+                        <Button type="button" variant="ghost" className="min-h-11 rounded-full px-2.5" onClick={() => { setSwipedId(null); setEditing(!editing); }}>
+                            {editing ? 'Готово' : 'Изменить'}
+                        </Button>
                     )}
                 </div>
+                {disconnected && (
+                    <p role="status" className="mt-1 text-sm text-muted-foreground">Нет связи с сервером MyTube.</p>
+                )}
                 {!!entries?.length && (
-                    <div className="flex items-center gap-1">
+                    <div className="mt-1 flex flex-wrap items-center justify-between gap-x-1">
+                        <p className="text-sm text-muted-foreground">Занято {formatBytes(entries.reduce((sum, item) => sum + item.bytes, 0))}</p>
                         {editing && (
-                            <Button type="button" variant="ghost" className="min-h-11 rounded-full text-destructive" onClick={() => setRemoving('all')}>
+                            <Button type="button" variant="ghost" className="min-h-11 rounded-full px-2.5 text-destructive" onClick={() => setRemoving('all')}>
                                 Удалить все
                             </Button>
                         )}
-                        <Button type="button" variant="ghost" className="min-h-11 rounded-full" onClick={() => { closeSwipe(); setEditing(!editing); }}>
-                            {editing ? 'Готово' : 'Изменить'}
-                        </Button>
                     </div>
                 )}
-            </div>
+            </header>
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             {source && (
                 <section className="space-y-2" aria-label="Воспроизведение">
@@ -206,40 +309,16 @@ export function DeviceLibrary({ disconnected = false }: { disconnected?: boolean
             ) : (
                 <ul className="divide-y divide-border/60">
                     {entries?.map((entry) => (
-                        <li key={entry.id} className="py-2">
-                            <div
-                                className={cn('flex items-center gap-2', !editing && 'scrollbar-none snap-x snap-mandatory overflow-x-auto overscroll-x-contain')}
-                                onPointerDown={(event) => activateRow(event.currentTarget)}
-                                onFocus={(event) => activateRow(event.currentTarget)}
-                            >
-                                <button
-                                    type="button"
-                                    aria-pressed={selectedId === entry.id}
-                                    className={cn(
-                                        'pressable flex min-w-0 items-center gap-3 rounded-lg p-1 text-left transition-[background-color,opacity,scale] hover:bg-accent active:bg-accent aria-pressed:bg-accent',
-                                        editing ? 'flex-1' : 'w-full flex-none snap-start',
-                                    )}
-                                    onClick={() => { closeSwipe(); setError(null); setSelectedId(entry.id); }}
-                                >
-                                    <Preview poster={entry.poster} />
-                                    <span className="min-w-0">
-                                        <span className="line-clamp-2 block text-sm font-medium">{entry.video.name}</span>
-                                        <span className="block truncate text-xs text-muted-foreground">
-                                            {formatDuration(entry.video.duration_seconds)} · {formatBytes(entry.bytes)}
-                                        </span>
-                                    </span>
-                                </button>
-                                <Button
-                                    type="button"
-                                    variant="destructive"
-                                    className="h-auto min-h-11 min-w-24 flex-none snap-end self-stretch rounded-lg"
-                                    aria-label={`Удалить с устройства «${entry.video.name}»`}
-                                    onClick={() => setRemoving(entry)}
-                                >
-                                    Удалить
-                                </Button>
-                            </div>
-                        </li>
+                        <SavedVideoRow
+                            key={entry.id}
+                            entry={entry}
+                            editing={editing}
+                            selected={selectedId === entry.id}
+                            open={swipedId === entry.id}
+                            onOpenChange={(open) => setSwipedId(open ? entry.id : null)}
+                            onPlay={() => { setSwipedId(null); setError(null); setSelectedId(entry.id); }}
+                            onRemove={() => { setSwipedId(null); setRemoving(entry); }}
+                        />
                     ))}
                 </ul>
             )}

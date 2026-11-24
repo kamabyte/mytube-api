@@ -19,8 +19,9 @@ let downloadToast: ReturnType<typeof toast> | undefined;
 
 function showDownloadToast(message: string, description: string, failed = false) {
     if (downloadToast !== undefined) toast.dismiss(downloadToast);
-    const options = { description, duration: failed ? 5000 : 3000, className: 'pointer-events-none' };
-    downloadToast = failed ? toast.error(message, options) : toast(message, options);
+    downloadToast = failed
+        ? toast.error(message, { description, duration: 5000, className: 'pointer-events-none' })
+        : toast(message, { description, duration: 3000 });
     return downloadToast;
 }
 
