@@ -3,12 +3,47 @@
 namespace App\Support\Youtube;
 
 use Illuminate\Contracts\Process\ProcessTimedOutException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Process;
 use RuntimeException;
 
 class WatchLater
 {
     public const string STATUS_KEY = 'youtube:watch-later:error';
+
+    /** @param list<string> $ids */
+    public function rememberDurationSkips(array $ids): void
+    {
+        if ($ids !== []) {
+            $keys = array_map($this->durationCacheKey(...), $ids);
+            Cache::putMany(array_fill_keys($keys, true), now()->addDay());
+        }
+    }
+
+    /**
+     * @param  array<int, string>  $ids
+     * @return list<string>
+     */
+    public function withoutDurationSkips(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $keys = array_map($this->durationCacheKey(...), $ids);
+        $idsByKey = array_combine($keys, $ids);
+        $skips = array_filter(Cache::many($keys));
+
+        return array_values(array_diff_key($idsByKey, $skips));
+    }
+
+    private function durationCacheKey(string $id): string
+    {
+        $min = config('app.videos.min_video_duration');
+        $max = config('app.videos.max_video_duration');
+
+        return "youtube:watch-later:duration-skip:{$min}:{$max}:{$id}";
+    }
 
     /** @return list<string> */
     public function videoIds(): array
