@@ -8,15 +8,18 @@ use App\Support\LibraryCleaner;
 use App\Support\StoresPublicThumbnail;
 use App\Support\Youtube\UploadsFeed;
 use App\Support\Youtube\VideoThumbnail;
+use App\Support\Youtube\WatchLater;
 use Carbon\Carbon;
 use DateInterval;
 use Google\Service\YouTube;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class ParseYoutubeVideos extends Command
 {
-    protected $signature = 'youtube:parse-videos {--channel= : Parse videos only for the given channel id} {--popular : Parse popular channel videos instead of latest uploads}';
+    protected $signature = 'youtube:parse-videos {--channel= : Parse videos only for the given channel id} {--popular : Parse popular channel videos instead of latest uploads} {--watch-later : Import videos from YouTube Watch Later}';
 
     protected $description = 'Парсинг новых видео с подписанных каналов';
 
@@ -40,14 +43,37 @@ class ParseYoutubeVideos extends Command
         StoresPublicThumbnail $thumbnailStore,
         LibraryCleaner $cleaner,
         UploadsFeed $feed,
+        WatchLater $watchLater,
     ) {
         $channelId = $this->option('channel');
-
-        $channels = Channel::query()
-            ->when($channelId, fn ($query) => $query->whereKey($channelId))
-            ->get();
-
         $parsePopular = (bool) $this->option('popular');
+        $syncWatchLater = (bool) $this->option('watch-later');
+        $watchLaterIds = [];
+
+        if ($syncWatchLater) {
+            if ($channelId || $parsePopular || ! config('services.youtube.watch_later_enabled')) {
+                $this->error('Для «Смотреть позже» включите YOUTUBE_WATCH_LATER_ENABLED и запустите --watch-later отдельно.');
+
+                return self::FAILURE;
+            }
+
+            try {
+                $watchLaterIds = $watchLater->videoIds();
+            } catch (RuntimeException $e) {
+                return $this->watchLaterFailed($e->getMessage());
+            }
+
+            $channels = collect([Channel::firstOrCreate(['external_id' => Channel::WATCH_LATER_ID], [
+                'name' => 'Смотреть позже',
+                'is_playlist' => true,
+                'parse_latest' => true,
+                'download_on_demand' => false,
+            ])]);
+        } else {
+            $channels = Channel::youtubeSources()
+                ->when($channelId, fn ($query) => $query->whereKey($channelId))
+                ->get();
+        }
 
         $this->logVerbose(sprintf(
             'Режим: %s; каналов к обработке: %d%s',
@@ -85,40 +111,44 @@ class ParseYoutubeVideos extends Command
                 }
 
                 // --channel (сразу после добавления) — без паузы.
-                if (! $parsePopular && ! $channelId && $channel->is_playlist
+                if (! $syncWatchLater && ! $parsePopular && ! $channelId && $channel->is_playlist
                     && $channel->last_synced_at?->gt(now()->subMinutes(self::PLAYLIST_INTERVAL_MINUTES))) {
                     $this->logVerbose('Плейлист проверялся меньше '.self::PLAYLIST_INTERVAL_MINUTES.' минут назад');
 
                     continue;
                 }
 
-                $uploadsPlaylistId = $channel->uploads_playlist_id ?: ($channel->is_playlist
+                $uploadsPlaylistId = $syncWatchLater ? null : ($channel->uploads_playlist_id ?: ($channel->is_playlist
                     ? null
-                    : $this->fetchUploadsPlaylistId($youTube, $channel->external_id));
+                    : $this->fetchUploadsPlaylistId($youTube, $channel->external_id)));
 
-                if (! $uploadsPlaylistId) {
+                if (! $syncWatchLater && ! $uploadsPlaylistId) {
                     $this->writeError("Не удалось определить uploads playlist для $channel->external_id");
 
                     continue;
                 }
 
-                if ($channel->uploads_playlist_id !== $uploadsPlaylistId) {
+                if (! $syncWatchLater && $channel->uploads_playlist_id !== $uploadsPlaylistId) {
                     $channel->update(['uploads_playlist_id' => $uploadsPlaylistId]);
                 }
 
                 $this->logVerbose("uploads playlist: $uploadsPlaylistId");
 
-                if ($parsePopular) {
+                if ($syncWatchLater) {
+                    $playlistItems = [];
+                    $knownIds = $channel->videos()->withoutGlobalScopes()->pluck('videos.external_id')->all();
+                    $additionalVideoIds = array_diff($watchLaterIds, $knownIds);
+                } elseif ($parsePopular) {
                     $playlistItems = [];
                     $popularVideos = $this->fetchPopularVideos($youTube, $uploadsPlaylistId);
-                    $popularVideoIds = collect($popularVideos)
+                    $additionalVideoIds = collect($popularVideos)
                         ->pluck('id')
                         ->values()
                         ->all();
                     $updatedViewCounts = $this->updateExistingVideoViewCounts($channel->id, $popularVideos);
                     $this->logVerbose(sprintf(
                         'Получено популярных видео id: %d; обновлено view_count у существующих видео: %d',
-                        count($popularVideoIds),
+                        count($additionalVideoIds),
                         $updatedViewCounts,
                     ));
                 } elseif ($channel->is_playlist) {
@@ -126,7 +156,7 @@ class ParseYoutubeVideos extends Command
                     // добавляют задним числом: обрезать выборку по last_synced_at нельзя,
                     // поэтому проходим его целиком. Заодно видно, что из него убрали.
                     $playlistItems = $this->fetchPlaylistItems($youTube, $uploadsPlaylistId);
-                    $popularVideoIds = [];
+                    $additionalVideoIds = [];
                     $this->logVerbose('Получено playlist items (плейлист целиком): '.count($playlistItems));
 
                     // Для плейлиста дата в playlist item — это дата добавления, она ничего
@@ -159,13 +189,13 @@ class ParseYoutubeVideos extends Command
                         $this->logVerbose('Получено последних playlist items: '.count($playlistItems));
                     }
 
-                    $popularVideoIds = [];
+                    $additionalVideoIds = [];
                 }
 
                 // Премьеры, встреченные до эфира: в новых загрузках их уже нет, курсор ушёл дальше.
                 $dueUpcomingIds = $parsePopular ? [] : $channel->upcomingVideos()->due()->pluck('external_id')->all();
 
-                if ($playlistItems === [] && $popularVideoIds === [] && $dueUpcomingIds === []) {
+                if (! $syncWatchLater && $playlistItems === [] && $additionalVideoIds === [] && $dueUpcomingIds === []) {
                     $this->writeInfo('Новых загрузок нет');
 
                     continue;
@@ -177,13 +207,13 @@ class ParseYoutubeVideos extends Command
 
                 $videoIds = collect($playlistItems)
                     ->map(fn ($item) => $item->snippet->resourceId->videoId ?? null)
-                    ->merge($popularVideoIds)
+                    ->merge($additionalVideoIds)
                     ->filter()
                     ->unique()
                     ->values()
                     ->all();
 
-                if ($channel->is_playlist && ! $parsePopular) {
+                if (! $syncWatchLater && $channel->is_playlist && ! $parsePopular) {
                     $this->syncPlaylistMembership($cleaner, $channel, $videoIds);
                 }
 
@@ -202,7 +232,7 @@ class ParseYoutubeVideos extends Command
                     $this->logVerbose('Пропущено удалённых вручную видео: '.count($removedVideoIds));
                 }
 
-                if ($videoIds === []) {
+                if (! $syncWatchLater && $videoIds === []) {
                     $this->writeInfo('Видео для сохранения не найдены');
 
                     continue;
@@ -310,7 +340,10 @@ class ParseYoutubeVideos extends Command
                     ->whereNotIn('external_id', $upcomingVideoIds)
                     ->delete();
 
-                if (! $channel->is_playlist && $latestPublishedAt && (! $channel->last_synced_at || $latestPublishedAt->gt($channel->last_synced_at))) {
+                if ($syncWatchLater) {
+                    $channel->update(['last_synced_at' => now()]);
+                    Cache::forget(WatchLater::STATUS_KEY);
+                } elseif (! $channel->is_playlist && $latestPublishedAt && (! $channel->last_synced_at || $latestPublishedAt->gt($channel->last_synced_at))) {
                     $channel->update(['last_synced_at' => $latestPublishedAt]);
                 }
 
@@ -326,11 +359,23 @@ class ParseYoutubeVideos extends Command
                 ));
 
             } catch (\Exception $e) {
+                if ($syncWatchLater) {
+                    return $this->watchLaterFailed('Не удалось обновить каталог «Смотреть позже».');
+                }
+
                 $this->writeError("Ошибка для {$channel->external_id}: ".$e->getMessage());
             }
         }
 
         return self::SUCCESS;
+    }
+
+    private function watchLaterFailed(string $message): int
+    {
+        Cache::forever(WatchLater::STATUS_KEY, $message);
+        $this->error($message);
+
+        return self::FAILURE;
     }
 
     /**

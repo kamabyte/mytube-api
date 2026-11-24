@@ -23,7 +23,7 @@ trait InteractsWithChannels
      */
     protected function channelsOverview(): Collection
     {
-        return Channel::query()
+        return Channel::youtubeSources()
             ->withCount([
                 'videos as videos_total' => fn ($query) => $query->withoutGlobalScopes(),
                 'videos as videos_downloaded' => fn ($query) => $query->withoutGlobalScopes()->where('is_downloaded', true),

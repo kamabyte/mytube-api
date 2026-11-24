@@ -14,6 +14,8 @@ use Illuminate\Support\Str;
 
 class Channel extends Model
 {
+    public const string WATCH_LATER_ID = 'mytube:watch-later';
+
     /** @use HasFactory<ChannelFactory> */
     use HasFactory;
 
@@ -28,6 +30,16 @@ class Channel extends Model
         'auto_download_from' => 'datetime',
         'sync_paused' => 'boolean',
     ];
+
+    public function isWatchLater(): bool
+    {
+        return $this->external_id === self::WATCH_LATER_ID;
+    }
+
+    public function scopeYoutubeSources(Builder $query): void
+    {
+        $query->where('channels.external_id', '!=', self::WATCH_LATER_ID);
+    }
 
     public function setDownloadMode(bool $onDemand, bool $paused, bool $newOnly): void
     {

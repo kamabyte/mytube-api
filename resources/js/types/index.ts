@@ -3,6 +3,7 @@ export interface ChannelSummary {
     name: string;
     thumbnail: string | null;
     is_playlist: boolean;
+    is_watch_later?: boolean;
     /** Каталог без автоскачивания: видео скачиваются, только когда их попросят. */
     download_on_demand: boolean;
     auto_download_from?: string | null;

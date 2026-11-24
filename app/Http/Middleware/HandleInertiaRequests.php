@@ -43,7 +43,7 @@ class HandleInertiaRequests extends Middleware
             // (каталог «по запросу»). Лениво: частичные перезагрузки
             // (подгрузка следующей страницы) их не запрашивают.
             'sidebarChannels' => fn () => ChannelCard::collection(
-                Channel::query()
+                Channel::youtubeSources()
                     ->select('id', 'name', 'thumbnail', 'is_playlist', 'download_on_demand')
                     ->orderBy('name')
                     ->get()

@@ -14,7 +14,7 @@ class UpNext
 {
     public const int DEFAULT_LIMIT = 20;
 
-    private const string CHANNEL_COLUMNS = 'channel:id,name,thumbnail,is_playlist';
+    private const string CHANNEL_COLUMNS = 'channel:id,name,thumbnail,is_playlist,external_id';
 
     /**
      * @param  list<string>  $columns

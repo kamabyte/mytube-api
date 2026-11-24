@@ -93,7 +93,7 @@ class RemoveYoutubeChannel extends Command
             return null;
         }
 
-        $matches = Channel::query()
+        $matches = Channel::youtubeSources()
             ->where(function ($query) use ($normalized): void {
                 $query
                     ->where('external_id', $normalized)

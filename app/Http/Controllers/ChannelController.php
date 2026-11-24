@@ -80,6 +80,8 @@ class ChannelController extends Controller
 
     public function update(UpdateChannelRequest $request, Channel $channel): ChannelResource
     {
+        abort_if($channel->isWatchLater(), 404);
+
         $channel->setDownloadMode($request->downloadOnDemand(), $request->syncPaused(), $request->downloadNewOnly());
 
         return $this->show($channel);
