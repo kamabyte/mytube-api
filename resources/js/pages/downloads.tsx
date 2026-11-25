@@ -7,7 +7,8 @@ import { formatDuration, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Video } from "@/types";
 
-type QueueEntry = Video & { retry_pending: boolean };
+type QueueEntry = Video & { retry_pending: boolean; retry_at: string | null };
+const retryTime = new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" });
 
 interface Snapshot {
     current: Video | null;
@@ -123,7 +124,9 @@ function QueuedDownload({ video }: {
                         {video.name}
                     </span>
                     <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                        {video.retry_pending ? "Повтор после ошибки" : reason}
+                        {video.retry_at
+                            ? `Повтор после ${retryTime.format(new Date(video.retry_at))}`
+                            : video.retry_pending ? "Повтор после ошибки" : reason}
                         {video.duration_seconds > 0 &&
                             ` · ${formatDuration(video.duration_seconds)}`}
                         {video.channel && ` · ${video.channel.name}`}

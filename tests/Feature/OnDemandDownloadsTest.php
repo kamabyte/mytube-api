@@ -442,10 +442,11 @@ it('ignores a stale run and shares the queue size with every page', function ():
 });
 
 it('pages through the complete queue and keeps videos waiting for a retry visible', function (): void {
+    $lastFailure = now('UTC')->startOfSecond()->subMinute();
     $auto = onDemandChannel('paged', onDemand: false);
     $failed = catalogVideo($auto, 'retry', ['published_at' => now()->subYear()]);
     VideoDownloadRun::query()->create([
-        'video_id' => $failed->id, 'status' => 'failed', 'started_at' => now()->subMinutes(2), 'finished_at' => now()->subMinute(),
+        'video_id' => $failed->id, 'status' => 'failed', 'started_at' => $lastFailure->copy()->subMinute(), 'finished_at' => $lastFailure,
     ]);
     foreach (range(1, 20) as $index) {
         catalogVideo($auto, "ready-{$index}");
@@ -455,5 +456,6 @@ it('pages through the complete queue and keeps videos waiting for a retry visibl
         ->component('downloads')->has('snapshot.queue', 20)->where('snapshot.queued_count', 21));
     $this->getJson('/downloads?page=2')->assertJsonPath('page', 2)
         ->assertJsonCount(1, 'queue')->assertJsonPath('queue.0.id', $failed->id)
-        ->assertJsonPath('queue.0.retry_pending', true);
+        ->assertJsonPath('queue.0.retry_pending', true)
+        ->assertJsonPath('queue.0.retry_at', $lastFailure->copy()->addMinutes(15)->toISOString());
 });
