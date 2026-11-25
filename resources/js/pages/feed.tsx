@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { Clapperboard } from 'lucide-react';
+import { CatalogSwitch } from '@/components/catalog-switch';
 import { EmptyState, PageTitle } from '@/components/empty-state';
 import { SortControl } from '@/components/sort-control';
 import { InfiniteVideoGrid } from '@/components/video-grid';
@@ -11,11 +12,13 @@ export default function Feed({ videos, sort }: { videos: Paginated<Video>; sort:
         <>
             <Head title="Все видео" />
             <PageTitle actions={<SortControl value={sort} />}>
-                Все видео
+                <span className="md:hidden">Каталог</span>
+                <span className="hidden md:inline">Все видео</span>
                 <span className="ml-3 align-middle text-base font-normal text-muted-foreground">
                     {plural(videos.meta.total, ['видео', 'видео', 'видео'])}
                 </span>
             </PageTitle>
+            <CatalogSwitch current="/videos" />
             {videos.data.length === 0 ? (
                 <EmptyState icon={Clapperboard} title="Видео ещё нет" />
             ) : (

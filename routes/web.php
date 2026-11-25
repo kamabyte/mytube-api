@@ -43,12 +43,13 @@ Route::delete('/channels/{channel}', [ChannelController::class, 'destroy'])->nam
 Route::get('/search', SearchController::class)->name('search');
 Route::get('/watch-later', WatchLaterController::class)->name('watch-later');
 
-// Очередь скачивания на сервер в «Статистике» (JSON).
+// Очередь скачивания на сервер.
 Route::get('/downloads', [DownloadController::class, 'index'])->name('downloads.index');
 
 // Колокольчик в шапке (JSON для выпадающей панели).
 Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
 Route::post('/notifications/read', [NotificationController::class, 'markAllRead'])->name('notifications.read');
 Route::patch('/notifications/{notification}', [NotificationController::class, 'update'])->name('notifications.update');
+Route::delete('/notifications/{notification}', [NotificationController::class, 'destroyOne'])->name('notifications.destroy-one');
 Route::delete('/notifications', [NotificationController::class, 'destroy'])->name('notifications.destroy');
 Route::get('/statistics', StatisticsController::class)->name('statistics');

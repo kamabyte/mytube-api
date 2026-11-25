@@ -3,6 +3,7 @@ import { CalendarPlus, Hand, ListVideo, Pause, Tv } from 'lucide-react';
 import { AddChannelDialog } from '@/components/add-channel-dialog';
 import { ChannelAvatar } from '@/components/channel-avatar';
 import { ChannelMenu } from '@/components/channel-menu';
+import { CatalogSwitch } from '@/components/catalog-switch';
 import { EmptyState, PageTitle } from '@/components/empty-state';
 import { formatBytes, formatRelative, plural } from '@/lib/format';
 import type { ChannelSummary } from '@/types';
@@ -73,9 +74,11 @@ export default function Channels({ channels }: { channels: Channel[] }) {
         <>
             <Head title="Каналы" />
             <PageTitle actions={<AddChannelDialog />}>
-                Каналы
+                <span className="md:hidden">Каталог</span>
+                <span className="hidden md:inline">Каналы</span>
                 <span className="ml-3 align-middle text-base font-normal text-muted-foreground">{channels.length}</span>
             </PageTitle>
+            <CatalogSwitch current="/channels" />
 
             {channels.length === 0 ? (
                 <EmptyState icon={Tv} title="Каналов нет">

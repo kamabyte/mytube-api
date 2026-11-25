@@ -172,7 +172,6 @@ export function Player({
     const hideTimer = useRef(0);
     const bezelTimer = useRef(0);
 
-    const [resumedAt, setResumedAt] = useState<number | null>(null);
     const [countdown, setCountdown] = useState<number | null>(null);
     const [failed, setFailed] = useState(false);
 
@@ -232,7 +231,6 @@ export function Player({
     // <video> следующего ролика.
     useEffect(() => {
         setCountdown(null);
-        setResumedAt(null);
         setFailed(false);
         setPaused(true);
         setEnded(false);
@@ -634,7 +632,7 @@ export function Player({
                 poster={blocked ? (poster ?? undefined) : undefined}
                 playsInline
                 preload="metadata"
-                className={cn('w-full bg-black', fullscreen ? 'h-full object-contain' : 'aspect-video')}
+                className={cn('block w-full bg-black', fullscreen ? 'h-full object-contain' : 'aspect-video')}
                 onPointerDown={(event) => {
                     pointerType.current = event.pointerType;
                 }}
@@ -651,11 +649,7 @@ export function Player({
                     const el = event.currentTarget;
                     setDuration(el.duration || video.duration_seconds);
                     const position = resumePosition(getProgress(video.id));
-                    if (position > 0) {
-                        el.currentTime = position;
-                        setResumedAt(position);
-                        window.setTimeout(() => setResumedAt(null), 6000);
-                    }
+                    if (position > 0) el.currentTime = position;
                 }}
                 onDurationChange={(event) => setDuration(event.currentTarget.duration || video.duration_seconds)}
                 onTimeUpdate={(event) => {
@@ -734,18 +728,18 @@ export function Player({
             )}
 
             {/* Большая кнопка: если автозапуск заблокирован и на тач-экранах. */}
-            {!failed && countdown === null && (started ? showControls && !waiting : blocked) && (
+            {!failed && !settingsOpen && countdown === null && (started ? showControls && !waiting : blocked) && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                     <button
                         type="button"
                         aria-label={paused ? 'Смотреть' : 'Пауза'}
                         onClick={() => togglePlay(false)}
                         className={cn(
-                            'pointer-events-auto inline-flex size-16 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm transition hover:bg-black/70 [&_svg]:size-8',
+                            'pointer-events-auto grid size-16 place-items-center p-0 rounded-full bg-black/55 text-white backdrop-blur-sm transition hover:bg-black/70 [&_svg]:size-8',
                             started && 'pointer-fine:hidden',
                         )}
                     >
-                        {ended ? <RotateCcw /> : paused ? <Play className="ml-1 fill-current" /> : <Pause className="fill-current" />}
+                        {ended ? <RotateCcw /> : paused ? <Play className="fill-current" /> : <Pause className="fill-current" />}
                     </button>
                 </div>
             )}
@@ -869,21 +863,6 @@ export function Player({
                     onSubtitle={selectSubtitle}
                     onClose={() => setSettingsOpen(false)}
                 />
-            )}
-
-            {resumedAt !== null && (
-                <div className="animate-fade-in absolute top-12 left-3 z-10 flex items-center gap-1 rounded-full bg-black/70 py-1 pr-1 pl-3 text-[13px] text-white backdrop-blur-md @sm:top-3">
-                    Продолжено с {formatDuration(resumedAt)}
-                    <button
-                        onClick={() => {
-                            if (ref.current) ref.current.currentTime = 0;
-                            setResumedAt(null);
-                        }}
-                        className="ml-1 inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 font-medium hover:bg-white/25"
-                    >
-                        <RotateCcw className="size-3" />С начала
-                    </button>
-                </div>
             )}
 
             {failed && (

@@ -52,12 +52,12 @@ export function SettingsMenu({
         };
     }, [onClose]);
 
-    const row = 'flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-white/10';
+    const row = 'flex w-full items-center min-h-11 gap-2 px-3 py-1.5 text-left text-sm hover:bg-white/10';
 
     return (
         <div
             ref={ref}
-            className="animate-fade-in absolute right-3 bottom-20 z-20 max-h-[calc(100%-5.5rem)] w-64 max-w-[calc(100%-1.5rem)] overflow-y-auto overscroll-contain @md:max-h-[calc(100%-6.5rem)] rounded-2xl bg-black/85 py-2 text-white shadow-xl backdrop-blur-md @md:bottom-24"
+            className="animate-fade-in absolute inset-y-2 right-2 z-20 my-auto h-fit max-h-[calc(100%-1rem)] w-64 max-w-[calc(100%-1rem)] overflow-y-auto overscroll-contain @md:top-auto @md:max-h-[calc(100%-6.5rem)] rounded-2xl bg-black/85 py-1 text-white shadow-xl backdrop-blur-md @md:bottom-24"
             onClick={(event) => event.stopPropagation()}
         >
             {page === 'main' ? (
@@ -108,7 +108,7 @@ export function SettingsMenu({
                         <ChevronLeft className="size-5" />
                         Субтитры
                     </button>
-                    <div className="max-h-64 overflow-y-auto pt-1">
+                    <div className="pt-1">
                         {[null, ...subtitles.map((_, index) => index)].map((index) => (
                             <button
                                 key={index ?? 'off'}
@@ -131,19 +131,19 @@ export function SettingsMenu({
                         <ChevronLeft className="size-5" />
                         Скорость
                     </button>
-                    <div className="max-h-64 overflow-y-auto pt-1">
+                    <div className="grid grid-cols-4 pt-1">
                         {SPEEDS.map((speed) => (
                             <button
                                 key={speed}
                                 type="button"
-                                className={row}
+                                aria-pressed={speed === rate}
+                                className="min-h-11 rounded-md text-sm hover:bg-white/10 aria-pressed:bg-white/20"
                                 onClick={() => {
                                     onRate(speed);
                                     onClose();
                                 }}
                             >
-                                <Check className={cn('size-4', speed !== rate && 'invisible')} />
-                                {speedLabel(speed)}
+                                {speed}×
                             </button>
                         ))}
                     </div>

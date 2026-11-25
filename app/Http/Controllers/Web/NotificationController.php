@@ -47,6 +47,13 @@ class NotificationController extends Controller
         return response()->noContent();
     }
 
+    public function destroyOne(string $notification): Response
+    {
+        User::owner()->notifications()->whereKey($notification)->delete();
+
+        return response()->noContent();
+    }
+
     public function destroy(): Response
     {
         User::owner()->notifications()->delete();

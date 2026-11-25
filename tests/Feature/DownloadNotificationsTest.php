@@ -116,3 +116,15 @@ it('keeps a single owner however often it is asked for', function (): void {
     expect(User::owner()->is(User::owner()))->toBeTrue()
         ->and(User::query()->count())->toBe(1);
 });
+
+it('deletes only the selected notification and updates the unread count', function (): void {
+    $owner = User::owner();
+    $owner->notifyNow(new VideoReady(hookVideo($this->channel)), ['database']);
+    $owner->notifyNow(new VideoReady(hookVideo($this->channel)), ['database']);
+    [$first, $second] = $owner->notifications()->pluck('id');
+
+    $this->deleteJson("/notifications/{$first}")->assertNoContent();
+    $this->deleteJson("/notifications/{$first}")->assertNoContent();
+    $this->getJson('/notifications')->assertJsonPath('unread_count', 1)
+        ->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $second);
+});

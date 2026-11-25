@@ -7,13 +7,10 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuPortal,
+    DropdownMenuLabel,
     DropdownMenuRadioGroup,
     DropdownMenuRadioItem,
     DropdownMenuSeparator,
-    DropdownMenuSub,
-    DropdownMenuSubContent,
-    DropdownMenuSubTrigger,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { VideoDownloadItems } from '@/components/video-download-items';
@@ -72,7 +69,7 @@ export function VideoActions({ video, className, onChange }: {
                         <EllipsisVertical className="size-[18px]" />
                     </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuContent align="end" collisionPadding={8} className="w-64 max-w-[calc(100vw-1rem)]">
                     <VideoDownloadItems key={video.id} video={video} streamUrl={streamUrl} />
                     {detail && !streamUrl && (
                         <DropdownMenuItem asChild className="min-h-11">
@@ -104,21 +101,15 @@ export function VideoActions({ video, className, onChange }: {
                         </DropdownMenuItem>
                     )}
                     {detail && state !== 'unavailable' && (
-                        <DropdownMenuSub>
-                            <DropdownMenuSubTrigger className="min-h-11 gap-2">
-                                <CloudDownload className="size-4 text-muted-foreground" />
-                                Скачивание на сервер
-                            </DropdownMenuSubTrigger>
-                            <DropdownMenuPortal>
-                                <DropdownMenuSubContent>
-                                    <DropdownMenuRadioGroup value={downloadMode} onValueChange={setDownloadMode}>
-                                        <DropdownMenuRadioItem value="channel">По настройкам канала</DropdownMenuRadioItem>
-                                        <DropdownMenuRadioItem value="on-demand">Только по запросу</DropdownMenuRadioItem>
-                                        <DropdownMenuRadioItem value="auto">Автоматически</DropdownMenuRadioItem>
-                                    </DropdownMenuRadioGroup>
-                                </DropdownMenuSubContent>
-                            </DropdownMenuPortal>
-                        </DropdownMenuSub>
+                        <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuLabel>Скачивание на сервер</DropdownMenuLabel>
+                            <DropdownMenuRadioGroup value={downloadMode} onValueChange={setDownloadMode}>
+                                <DropdownMenuRadioItem className="min-h-11" value="channel">По настройкам канала</DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem className="min-h-11" value="on-demand">Только по запросу</DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem className="min-h-11" value="auto">Автоматически</DropdownMenuRadioItem>
+                            </DropdownMenuRadioGroup>
+                        </>
                     )}
                     {(detail || state === 'available' || canCancel || streamUrl) && <DropdownMenuSeparator />}
                     <DropdownMenuItem variant="destructive" onSelect={() => setDialog('delete')} className="min-h-11">

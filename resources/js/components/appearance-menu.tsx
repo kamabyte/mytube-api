@@ -1,4 +1,5 @@
-import { Monitor, Moon, Smartphone, Sun } from 'lucide-react';
+import { Link } from '@inertiajs/react';
+import { ArrowDownToLine, ChartColumnBig, ChevronLeft, Ellipsis, Monitor, Moon, Palette, Smartphone, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -23,6 +24,7 @@ const OPTIONS: { value: Appearance; label: string; icon: typeof Sun }[] = [
 
 export function AppearanceMenu() {
     const { appearance, updateAppearance } = useAppearance();
+    const [choosingTheme, setChoosingTheme] = useState(false);
     const [prompt, setPrompt] = useState<InstallPromptEvent | null>(null);
     const [showAppleHelp, setShowAppleHelp] = useState(false);
     const [appleBrowser, setAppleBrowser] = useState(false);
@@ -59,23 +61,43 @@ export function AppearanceMenu() {
 
     return (
         <>
-            <DropdownMenu>
+            <DropdownMenu onOpenChange={(open) => { if (open) setChoosingTheme(false); }}>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="size-11 rounded-full max-md:-mr-[13px] md:size-9" aria-label="Настройки оформления и приложения">
-                        <Sun className="size-[18px] dark:hidden" />
-                        <Moon className="hidden size-[18px] dark:block" />
+                    <Button variant="ghost" size="icon" className="size-11 rounded-full max-md:-mr-[13px] md:size-9">
+                        <span className="sr-only md:hidden">Меню приложения</span>
+                        <span className="sr-only max-md:hidden">Настройки оформления и приложения</span>
+                        <Ellipsis className="size-5 md:hidden" />
+                        <Sun className="hidden size-[18px] md:block dark:md:hidden" />
+                        <Moon className="hidden size-[18px] dark:md:block" />
                     </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>Тема</DropdownMenuLabel>
-                    <DropdownMenuRadioGroup value={appearance} onValueChange={(value) => updateAppearance(value as Appearance)}>
-                        {OPTIONS.map(({ value, label, icon: Icon }) => (
-                            <DropdownMenuRadioItem key={value} value={value}>
-                                <Icon className="size-4 text-muted-foreground" />
-                                {label}
-                            </DropdownMenuRadioItem>
-                        ))}
-                    </DropdownMenuRadioGroup>
+                <DropdownMenuContent align="end" collisionPadding={8} className="w-56">
+                    <div className="md:hidden">
+                        {choosingTheme ? (
+                            <DropdownMenuItem className="min-h-11" onSelect={(event) => { event.preventDefault(); setChoosingTheme(false); }}>
+                                <ChevronLeft /> Назад
+                            </DropdownMenuItem>
+                        ) : (
+                            <>
+                                <DropdownMenuItem asChild className="min-h-11"><Link href="/downloads"><ArrowDownToLine /> Очередь сервера</Link></DropdownMenuItem>
+                                <DropdownMenuItem asChild className="min-h-11"><Link href="/statistics"><ChartColumnBig /> Статистика</Link></DropdownMenuItem>
+                                <DropdownMenuItem className="min-h-11" onSelect={(event) => { event.preventDefault(); setChoosingTheme(true); }}>
+                                    <Palette /> Тема оформления
+                                </DropdownMenuItem>
+                            </>
+                        )}
+                    </div>
+                    <div className={choosingTheme ? undefined : 'max-md:hidden'}>
+                        <DropdownMenuLabel>Тема оформления</DropdownMenuLabel>
+                        <DropdownMenuRadioGroup value={appearance} onValueChange={(value) => updateAppearance(value as Appearance)}>
+                            {OPTIONS.map(({ value, label, icon: Icon }) => (
+                                <DropdownMenuRadioItem key={value} value={value} className="max-md:min-h-11">
+                                    <Icon className="size-4 text-muted-foreground" />
+                                    {label}
+                                </DropdownMenuRadioItem>
+                            ))}
+                        </DropdownMenuRadioGroup>
+                    </div>
                     {(prompt || appleBrowser) && (
                         <>
                             <DropdownMenuSeparator />

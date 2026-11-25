@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { toast } from 'sonner';
 
 /** Уведомление колокольчика — App\Http\Controllers\Web\NotificationController::present(). */
 export interface AppNotification {
@@ -56,11 +57,15 @@ async function send(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string): P
     });
 }
 
+let loadSequence = 0;
+
 export async function loadNotifications() {
+    const sequence = ++loadSequence;
     const response = await send('GET', '/notifications');
     if (!response.ok) return;
 
     const body = (await response.json()) as { unread_count: number; data: AppNotification[] };
+    if (sequence !== loadSequence) return;
     set({ items: body.data, unread: body.unread_count, loaded: true });
 }
 
@@ -88,7 +93,21 @@ export async function markAllRead() {
     await send('POST', '/notifications/read');
 }
 
-export async function clearNotifications() {
-    set({ items: [], unread: 0 });
-    await send('DELETE', '/notifications');
+export async function deleteNotifications(id?: string) {
+    try {
+        const response = await send('DELETE', id ? `/notifications/${id}` : '/notifications');
+        if (!response.ok) throw new Error();
+    } catch {
+        toast.error('Не удалось удалить уведомления');
+        return;
+    }
+
+    ++loadSequence;
+    const removed = state.items.find(item => item.id === id);
+    set(id ? {
+        items: state.items.filter(item => item.id !== id),
+        unread: Math.max(0, (state.unread ?? 0) - (removed && !removed.read_at ? 1 : 0)),
+    } : { items: [], unread: 0 });
+    // Refill the visible list and reconcile notifications received during deletion.
+    await loadNotifications().catch(() => {});
 }

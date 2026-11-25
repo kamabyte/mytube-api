@@ -28,7 +28,7 @@ class DownloadRequestController extends Controller
             return back();
         }
 
-        Toast::success('Видео в очереди на загрузку', 'Час видео скачивается за 3–4 минуты, страница обновится сама.');
+        Toast::success('Видео в очереди на загрузку', 'Когда видео будет готово, появится уведомление.');
 
         return back();
     }

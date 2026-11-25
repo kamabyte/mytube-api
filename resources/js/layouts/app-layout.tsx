@@ -41,18 +41,17 @@ interface NavItem {
     match?: RegExp;
 }
 
+const home: NavItem = { href: "/", label: "Главная", icon: House, match: /^\/(\?.*)?$/ };
+const watchLater: NavItem = { href: "/watch-later", label: "Смотреть позже", shortLabel: "Позже", icon: Clock3 };
+const onDevice: NavItem = { href: DEVICE_LIBRARY, label: "На устройстве", shortLabel: "Офлайн", icon: HardDrive };
+
 const NAV: NavItem[] = [
-    { href: "/", label: "Главная", icon: House, match: /^\/(\?.*)?$/ },
-    {
-        href: "/videos",
-        label: "Все видео",
-        icon: Clapperboard,
-        match: /^\/(videos|watch)(?:[/?]|$)/,
-    },
+    home,
+    { href: "/videos", label: "Все видео", icon: Clapperboard, match: /^\/(videos|watch)(?:[/?]|$)/ },
     { href: "/channels", label: "Каналы", icon: Tv, match: /^\/channels\b/ },
-    { href: "/watch-later", label: "Смотреть позже", shortLabel: "Позже", icon: Clock3 },
-    { href: DEVICE_LIBRARY, label: "На устройстве", shortLabel: "Офлайн", icon: HardDrive },
-    { href: "/statistics", label: "Статистика", icon: ChartColumnBig },
+    watchLater,
+    onDevice,
+    { href: "/statistics", label: "Статистика", icon: ChartColumnBig, match: /^\/(statistics|downloads)(?:[/?]|$)/ },
 ];
 
 function isActive(item: NavItem, url: string) {
@@ -206,7 +205,19 @@ function Header({ sidebarCompact, onToggleSidebar }: { sidebarCompact: boolean; 
 /** Нижняя панель вкладок на телефоне — как в iOS. */
 function TabBar() {
     const { url, component } = usePage();
-    const prefetchHref = component === "feed" ? "/" : component === "home" ? "/videos" : null;
+    const [preferChannels, setPreferChannels] = useStoredToggle("mytube:catalog-channels", false);
+    useEffect(() => {
+        if (component === "channels" || component === "feed") setPreferChannels(component === "channels");
+    }, [component, setPreferChannels]);
+
+    const catalogHref = preferChannels ? "/channels" : "/videos";
+    const items: NavItem[] = [
+        home,
+        { href: catalogHref, label: "Каталог", icon: Clapperboard, match: /^\/(videos|watch|channels)(?:[/?]|$)/ },
+        watchLater,
+        onDevice,
+    ];
+    const prefetchHref = component === "home" ? catalogHref : component === "feed" ? "/" : null;
 
     useEffect(() => {
         if (prefetchHref && navigator.onLine) {
@@ -219,8 +230,8 @@ function TabBar() {
             className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-chrome backdrop-blur-xl backdrop-saturate-150 md:hidden"
             aria-label="Разделы"
         >
-            <div className="grid h-14 grid-cols-6 pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
-                {NAV.map((item) => {
+            <div className="grid h-14 grid-cols-4 pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
+                {items.map((item) => {
                     const active = isActive(item, url);
                     const Icon = item.icon;
                     const NavLink = item.href === DEVICE_LIBRARY ? DeviceLibraryLink : Link;

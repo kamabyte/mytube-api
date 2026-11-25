@@ -132,7 +132,7 @@ function SavedVideoRow({ entry, editing, selected, open, onOpenChange, onPlay, o
         <li className="py-1.5">
             <div
                 ref={swipeSurface}
-                className={cn('group/swipe relative flex items-center overflow-hidden rounded-lg [--swipe-offset:var(--swipe-drag-offset,var(--swipe-rest-offset))]', editing ? 'gap-1' : 'touch-pan-y')}
+                className={cn('group/swipe relative flex items-center overflow-hidden [--swipe-offset:var(--swipe-drag-offset,var(--swipe-rest-offset))]', editing ? 'gap-1' : 'touch-pan-y')}
                 style={{ '--swipe-rest-offset': `${offset}px` } as CSSProperties}
             >
                 {editing ? (
@@ -167,7 +167,7 @@ function SavedVideoRow({ entry, editing, selected, open, onOpenChange, onPlay, o
                     type="button"
                     aria-pressed={selected}
                     className={cn(
-                        'relative flex min-w-0 items-center gap-3 rounded-lg bg-background p-1 text-left outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:bg-accent aria-pressed:bg-accent',
+                        'relative flex min-w-0 items-center gap-3 bg-background p-1 text-left outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:bg-accent aria-pressed:bg-accent',
                         editing ? 'flex-1' : 'w-full flex-none touch-pan-y motion-safe:transition-[translate,background-color] motion-safe:duration-200 group-data-swiping/swipe:transition-none',
                     )}
                     style={editing ? undefined : { translate: 'calc(-1 * var(--swipe-offset))' }}

@@ -2,10 +2,10 @@ import { router, usePage } from '@inertiajs/react';
 import { Bell, CheckCheck, CircleCheck, Clapperboard, Trash2, X } from 'lucide-react';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { formatRelative } from '@/lib/format';
-import { type AppNotification, clearNotifications, loadNotifications, markAllRead, markRead, syncUnread, useNotifications } from '@/lib/notifications';
+import { type AppNotification, deleteNotifications, loadNotifications, markAllRead, markRead, syncUnread, useNotifications } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 
@@ -25,7 +25,7 @@ function subscribeToViewport(listener: () => void) {
 
 function NotificationRow({ notification, mobile, onSelect }: { notification: AppNotification; mobile: boolean; onSelect: () => void }) {
     const unread = !notification.read_at;
-    const previewClass = cn('aspect-video shrink-0 rounded-lg bg-muted', mobile ? 'w-14' : 'w-24');
+    const previewClass = cn('aspect-video shrink-0 self-start rounded-lg bg-muted', mobile ? 'w-14' : 'w-24');
     const classes = cn('relative items-start rounded-xl', mobile ? 'gap-2.5 p-2' : 'gap-3 p-2.5', unread && 'bg-brand/[0.06]');
     const content = (
         <>
@@ -58,14 +58,15 @@ function NotificationRow({ notification, mobile, onSelect }: { notification: App
         </>
     );
 
-    return mobile ? (
-        <li>
-            <button type="button" className={cn('pressable flex min-h-16 w-full text-left hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none', classes)} onClick={onSelect}>
+    return (
+        <li className="flex items-start">
+            <button type="button" className={cn('pressable flex min-h-16 min-w-0 flex-1 text-left hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring', classes)} onClick={onSelect}>
                 {content}
             </button>
+            <Button variant="ghost" size="icon" className="size-11 shrink-0 rounded-full text-muted-foreground hover:text-destructive" aria-label={`Удалить уведомление «${notification.title}»`} onClick={() => void deleteNotifications(notification.id)}>
+                <Trash2 className="size-4" />
+            </Button>
         </li>
-    ) : (
-        <DropdownMenuItem className={classes} onSelect={onSelect}>{content}</DropdownMenuItem>
     );
 }
 
@@ -100,7 +101,7 @@ export function NotificationBell() {
         </Button>
     );
     const actions = (count > 0 || items.length > 0) && (
-        <div className="flex gap-1">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1 border-t border-border/60 px-3 py-1">
             {count > 0 && (
                 <Button variant="ghost" size="sm" className="h-11 rounded-full text-xs md:h-8" onClick={() => void markAllRead()}>
                     <CheckCheck className="size-3.5" />
@@ -110,12 +111,12 @@ export function NotificationBell() {
             {items.length > 0 && (
                 <Button
                     variant="ghost"
-                    size="icon"
-                    className="size-11 rounded-full text-muted-foreground md:size-8"
-                    aria-label="Очистить уведомления"
-                    onClick={() => void clearNotifications()}
+                    size="sm"
+                    className="min-h-11 rounded-full text-xs text-muted-foreground hover:text-destructive"
+                    onClick={() => void deleteNotifications()}
                 >
                     <Trash2 className="size-3.5" />
+                    Очистить все
                 </Button>
             )}
         </div>
@@ -146,28 +147,28 @@ export function NotificationBell() {
                                 </Button>
                             </SheetClose>
                         </div>
-                        {actions}
                     </SheetHeader>
                     <div className="min-h-0 overflow-y-auto overscroll-contain px-3 py-2">
                         {items.length ? <ul className="space-y-1">{rows}</ul> : empty}
                     </div>
+                    {actions}
                 </SheetContent>
             </Sheet>
         );
     }
 
     return (
-        <DropdownMenu open={open} onOpenChange={changeOpen}>
-            <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[min(26rem,calc(100vw-2rem))] rounded-2xl p-0">
+        <Popover open={open} onOpenChange={changeOpen}>
+            <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+            <PopoverContent align="end" className="w-[min(26rem,calc(100vw-2rem))] rounded-2xl p-0">
                 <div className="flex items-center justify-between gap-2 border-b border-border/60 px-4 py-3">
                     <span className="font-display text-base font-semibold">Уведомления</span>
-                    {actions}
                 </div>
                 <div className="max-h-[min(32rem,70dvh)] overflow-y-auto p-1.5">
-                    {items.length ? rows : empty}
+                    {items.length ? <ul>{rows}</ul> : empty}
                 </div>
-            </DropdownMenuContent>
-        </DropdownMenu>
+                {actions}
+            </PopoverContent>
+        </Popover>
     );
 }
