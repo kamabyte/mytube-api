@@ -14,7 +14,7 @@ export function FlashToaster() {
                 const flash = (event.detail.flash ?? {}) as { toast?: Toast };
                 const message = flash.toast;
                 if (!message) return;
-                const options = { description: message.description ?? undefined };
+                const options = { id: message.id ?? undefined, description: message.description ?? undefined };
                 if (message.type === 'error') toast.error(message.message, options);
                 else toast.success(message.message, options);
             }),

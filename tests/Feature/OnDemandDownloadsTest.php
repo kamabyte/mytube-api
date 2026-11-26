@@ -68,13 +68,16 @@ it('queues a requested video and keeps its place on a repeated request', functio
 
     $this->post("/videos/{$video->id}/download")
         ->assertRedirect()
-        ->assertInertiaFlash('toast.message', 'Видео в очереди на загрузку');
+        ->assertInertiaFlash('toast.message', 'Видео в очереди на загрузку')
+        ->assertInertiaFlash('toast.id', "download-queued-{$video->id}");
 
     $requestedAt = $video->fresh()->download_requested_at;
     expect($requestedAt)->not->toBeNull();
 
     $this->travel(5)->minutes();
-    $this->post("/videos/{$video->id}/download")->assertRedirect();
+    $this->post("/videos/{$video->id}/download")
+        ->assertRedirect()
+        ->assertInertiaFlash('toast.id', "download-queued-{$video->id}");
 
     expect($video->fresh()->download_requested_at->equalTo($requestedAt))->toBeTrue()
         ->and(Video::withoutGlobalScopes()->awaitingDownload()->pluck('id')->all())->toBe([$video->id]);

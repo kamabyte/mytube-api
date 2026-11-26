@@ -28,7 +28,11 @@ class DownloadRequestController extends Controller
             return back();
         }
 
-        Toast::success('Видео в очереди на загрузку', 'Когда видео будет готово, появится уведомление.');
+        Toast::success(
+            'Видео в очереди на загрузку',
+            'Когда видео будет готово, появится уведомление.',
+            id: "download-queued-{$catalogVideo->id}",
+        );
 
         return back();
     }

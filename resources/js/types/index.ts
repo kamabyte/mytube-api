@@ -75,6 +75,7 @@ export interface Paginated<T> {
 export type VideoSort = "new" | "added" | "popular" | "old";
 
 export interface Toast {
+    id?: string | null;
     type: "success" | "error";
     message: string;
     description?: string | null;
