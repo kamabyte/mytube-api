@@ -6,6 +6,7 @@ use App\Models\Video;
 use Google\Client;
 use Google\Service\YouTube;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -32,6 +33,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // За HTTPS-прокси теги Vite и импорты модулей должны указывать на один URL.
+        if (! config('app.asset_url')) {
+            Vite::createAssetPathsUsing(fn (string $path) => request()->getBasePath().'/'.$path);
+        }
+
         // Видео из каталога, скачанное или нет. {video} остаётся «только скачанные»:
         // глобальный скоуп модели, на нём же держится JSON API.
         // Здесь, а не в routes/web.php: в проде маршруты закешированы (route:cache),
