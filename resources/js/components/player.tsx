@@ -611,8 +611,9 @@ export function Player({
             ref={container}
             tabIndex={-1}
             className={cn(
-                'group/player @container relative overflow-hidden bg-black shadow-2xl shadow-black/20 outline-none select-none dark:shadow-black/60',
-                fullscreen ? 'flex items-center' : theater ? 'sm:rounded-2xl lg:mx-auto lg:max-w-[calc((100svh-10rem)*16/9)] lg:rounded-none lg:shadow-none' : 'sm:rounded-2xl',
+                'group/player @container relative aspect-video w-full overflow-hidden bg-black shadow-2xl shadow-black/20 outline-none select-none dark:shadow-black/60',
+                !fullscreen && 'sm:rounded-2xl',
+                theater && !fullscreen && 'lg:max-h-[calc(100svh-10rem)] lg:rounded-none lg:shadow-none',
                 !showControls && 'cursor-none',
             )}
             onPointerMove={(event) => {
@@ -632,7 +633,7 @@ export function Player({
                 poster={blocked ? (poster ?? undefined) : undefined}
                 playsInline
                 preload="metadata"
-                className={cn('block w-full bg-black', fullscreen ? 'h-full object-contain' : 'aspect-video')}
+                className="absolute inset-0 size-full object-contain"
                 onPointerDown={(event) => {
                     pointerType.current = event.pointerType;
                 }}
